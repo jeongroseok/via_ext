@@ -1794,7 +1794,6 @@ function _via_regions_group_color_init() {
 // transform regions in image space to canvas space
 function _via_load_canvas_regions() {
   _via_regions_group_color_init();
-  console.log("_via_load_canvas_regions called");
   // _via_img_metadata에서 _via_canvas_regions으로 변환 후 복사함.
 
   // load all existing annotations into _via_canvas_regions
@@ -1862,6 +1861,21 @@ function _via_load_canvas_regions() {
 
         _via_canvas_regions[i].shape_attributes["cx"] = Math.round(cx);
         _via_canvas_regions[i].shape_attributes["cy"] = Math.round(cy);
+        break;
+
+      //// 추가된 코드 load_canvas_regions
+      case VIA_REGION_SHAPE.SKELETON:
+        _via_canvas_regions[i].shape_attributes = JSON.parse(
+          JSON.stringify(regions[i].shape_attributes)
+        );
+        const image_joints = regions[i].shape_attributes.joints;
+        const canvas_joints = _via_canvas_regions[i].shape_attributes.joints;
+        for (const type of Object.values(_EXT_JOINT_TYPE)) {
+          const image_joint = image_joints[type];
+          const canvas_joint = canvas_joints[type];
+          canvas_joint.x = Math.round(image_joint.x / _via_canvas_scale);
+          canvas_joint.y = Math.round(image_joint.y / _via_canvas_scale);
+        }
         break;
     }
   }
@@ -2074,7 +2088,8 @@ function _via_reg_canvas_mousedown_handler(e) {
         toggle_all_regions_selection(false);
       }
     }
-  } else if (!_via_is_region_selected) {
+  }
+  if (!_via_is_region_selected) {
     if (region_id === -1) {
       // mousedown outside a region
       if (
@@ -2083,7 +2098,6 @@ function _via_reg_canvas_mousedown_handler(e) {
         _via_current_shape !== VIA_REGION_SHAPE.POINT
       ) {
         // this is a bounding box drawing event
-        console.log("drawing region start");
         _via_is_user_drawing_region = true;
       }
     } else {
@@ -2173,7 +2187,6 @@ function _via_reg_canvas_mouseup_handler(e) {
             break;
 
           case VIA_REGION_SHAPE.POINT:
-          case VIA_REGION_SHAPE.SKELETON:
             // user has marked a landmark point
             var point_region = new file_region();
             point_region.shape_attributes["name"] = VIA_REGION_SHAPE.POINT;
@@ -2385,6 +2398,19 @@ function _via_reg_canvas_mouseup_handler(e) {
           );
         }
         break;
+      //// 추가된 코드 reg_canvas_mouseup_handler
+      case VIA_REGION_SHAPE.SKELETON:
+        var moved_vertex_id =
+          _via_region_edge[1] - VIA_POLYGON_RESIZE_VERTEX_OFFSET;
+        const jointType = Object.keys(image_attr.joints)[moved_vertex_id];
+        const image_joint = image_attr.joints[jointType];
+        const canvas_joint = canvas_attr.joints[jointType];
+
+        image_joint.x = Math.round(_via_current_x * _via_canvas_scale);
+        image_joint.y = Math.round(_via_current_y * _via_canvas_scale);
+        canvas_joint.x = Math.round(image_joint.x / _via_canvas_scale);
+        canvas_joint.y = Math.round(image_joint.y / _via_canvas_scale);
+        break;
     } // end of switch()
     _via_redraw_reg_canvas();
     _via_reg_canvas.focus();
@@ -2393,7 +2419,6 @@ function _via_reg_canvas_mouseup_handler(e) {
 
   // denotes a single click
   if (click_dx < VIA_MOUSE_CLICK_TOL || click_dy < VIA_MOUSE_CLICK_TOL) {
-    console.log("mouseup: single click");
     if (_via_is_user_drawing_polygon) {
       var canvas_x0 = Math.round(_via_click_x1);
       var canvas_y0 = Math.round(_via_click_y1);
@@ -2676,7 +2701,7 @@ function _via_reg_canvas_mouseup_handler(e) {
       case VIA_REGION_SHAPE.POLYGON:
         // handled by _via_is_user_drawing_polygon
         break;
-      //// 추가된 코드 시작
+      //// 추가된 코드 새로운 region 생성
       case VIA_REGION_SHAPE.SKELETON:
         // left-top, right-bottom 위치 보정
         if (_via_click_x0 < _via_click_x1) {
@@ -2695,7 +2720,6 @@ function _via_reg_canvas_mouseup_handler(e) {
           region_y1 = _via_click_y0;
         }
 
-        const name = VIA_REGION_SHAPE.SKELETON;
         var x = Math.round(region_x0 * _via_canvas_scale);
         var y = Math.round(region_y0 * _via_canvas_scale);
         var width = Math.round(region_dx * _via_canvas_scale);
@@ -2705,17 +2729,14 @@ function _via_reg_canvas_mouseup_handler(e) {
           _ext_create_skeleton_shape_attribute(x, y, width, height);
         canvas_img_region.shape_attributes =
           _ext_create_skeleton_shape_attribute(
-            x,
-            y,
-            width,
-            height,
-            1 / _via_canvas_scale
+            x / _via_canvas_scale,
+            y / _via_canvas_scale,
+            width / _via_canvas_scale,
+            height / _via_canvas_scale
           );
 
         new_region_added = true;
-        console.log("mouseup에서 skeleton region added");
         break;
-      //// 추가된 코드 끝
     } // end of switch
 
     if (new_region_added) {
@@ -2810,6 +2831,7 @@ function _via_reg_canvas_mousemove_handler(e) {
     }
 
     if (!_via_is_user_resizing_region) {
+      // region이 선택되고 resize 중이 아니면
       // check if user moved mouse cursor to region boundary
       // which indicates an intention to resize the region
       _via_region_edge = is_on_region_corner(_via_current_x, _via_current_y);
@@ -2950,6 +2972,14 @@ function _via_reg_canvas_mousemove_handler(e) {
       case VIA_REGION_SHAPE.POLYGON:
         // this is handled by the if ( _via_is_user_drawing_polygon ) { ... }
         // see below
+        break;
+      //// 추가된 코드 새로 만들때 시각화
+      case VIA_REGION_SHAPE.SKELETON:
+        _ext_draw_skeleton_region(
+          _ext_create_skeleton_shape_attribute(region_x0, region_y0, dx, dy)
+            .joints,
+          false
+        );
         break;
     }
     _via_reg_canvas.focus();
@@ -3180,6 +3210,12 @@ function _via_reg_canvas_mousemove_handler(e) {
       case VIA_REGION_SHAPE.POINT:
         _via_draw_point_region(attr["cx"] + move_x, attr["cy"] + move_y, true);
         break;
+      //// 추가된 코드 움직일때 시각화
+      case VIA_REGION_SHAPE.SKELETON:
+        const joints = _ext_deep_copy(attr.joints);
+        _ext_move_joints(joints, move_x, move_y);
+        _ext_draw_skeleton_region(joints, true);
+        break;
     }
     _via_reg_canvas.focus();
     annotation_editor_hide(); // moving
@@ -3323,6 +3359,20 @@ function _via_move_region(region_id, move_x, move_y) {
         canvas_py[i] = Math.round(img_py[i] / _via_canvas_scale);
       }
       break;
+    //// 추가된 코드 move_region
+    case VIA_REGION_SHAPE.SKELETON:
+      const image_joints = image_attr.joints;
+      const canvas_joints = canvas_attr.joints;
+      for (const type of Object.values(_EXT_JOINT_TYPE)) {
+        const image_joint = image_joints[type];
+        const canvas_joint = canvas_joints[type];
+
+        image_joint.x = image_joint.x + Math.round(move_x * _via_canvas_scale);
+        image_joint.y = image_joint.y + Math.round(move_y * _via_canvas_scale);
+        canvas_joint.x = Math.round(image_joint.x / _via_canvas_scale);
+        canvas_joint.y = Math.round(image_joint.y / _via_canvas_scale);
+      }
+      break;
   }
 }
 
@@ -3454,7 +3504,7 @@ function draw_all_regions() {
         break;
 
       case VIA_REGION_SHAPE.SKELETON:
-        _via_draw_skeleton_region(attr, is_selected);
+        _ext_draw_skeleton_region(attr.joints, is_selected);
         break;
     }
   }
@@ -3888,6 +3938,16 @@ function get_region_bounding_box(region) {
       bbox[2] = d["cx"] + VIA_REGION_POINT_RADIUS;
       bbox[3] = d["cy"] + VIA_REGION_POINT_RADIUS;
       break;
+    case VIA_REGION_SHAPE.SKELETON:
+      const joints = d.joints;
+      bbox[0] = joints[_EXT_JOINT_TYPE.LeftWrist].x;
+      bbox[1] = joints[_EXT_JOINT_TYPE.HeadTop].y;
+      bbox[2] = joints[_EXT_JOINT_TYPE.RightWrist].x;
+      bbox[3] = Math.max(
+        joints[_EXT_JOINT_TYPE.LeftAnkle].y,
+        joints[_EXT_JOINT_TYPE.RightAnkle].y
+      );
+      break;
   }
   return bbox;
 }
@@ -3967,6 +4027,10 @@ function is_inside_this_region(px, py, region_id) {
 
     case VIA_REGION_SHAPE.POINT:
       result = is_inside_point(attr["cx"], attr["cy"], px, py);
+      break;
+    //// 추가된 코드 is_inside_this_region
+    case VIA_REGION_SHAPE.SKELETON:
+      result = is_inside_skeleton(attr.joints, px, py);
       break;
   }
   return result;
@@ -4125,6 +4189,17 @@ function is_on_region_corner(px, py) {
       case VIA_REGION_SHAPE.POINT:
         // since there are no edges of a point
         result = 0;
+        break;
+
+      //// 추가된 코드 is_on_region_corner
+      case VIA_REGION_SHAPE.SKELETON:
+        const joints = Object.values(attr.joints);
+        const all_points_x = joints.map((j) => j.x);
+        const all_points_y = joints.map((j) => j.y);
+        result = is_on_polygon_vertex(all_points_x, all_points_y, px, py);
+        // if (result === 0) {
+        //   result = is_on_polygon_edge(all_points_x, all_points_y, px, py);
+        // }
         break;
     }
 
@@ -12060,7 +12135,7 @@ const _EXT_JOINT_TYPE = {
   HeadTop: "Head-top",
 };
 
-function _ext_create_skeleton_shape_attribute(x, y, width, height, scale = 1) {
+function _ext_create_skeleton_shape_attribute(x, y, width, height) {
   const centerX = x + width / 2;
   // 머리: 7등신으로 가정 하고, 코는 머리의 2/3
   const headHeight = height / 7;
@@ -12118,7 +12193,7 @@ function _ext_create_skeleton_shape_attribute(x, y, width, height, scale = 1) {
   // 하체: 3/7
   const bottomHeight = headHeight * 3;
   const bottomY = y + headHeight + topHeight;
-  const bottomWidth = width * 0.5;
+  const bottomWidth = width * 0.4;
   const bottom = {
     // 발목
     [_EXT_JOINT_TYPE.LeftAnkle]: {
@@ -12157,9 +12232,7 @@ function _ext_create_skeleton_shape_attribute(x, y, width, height, scale = 1) {
   };
 }
 
-function _via_draw_skeleton_region(attr, is_selected) {
-  const { joints } = attr;
-
+function _ext_draw_skeleton_region(joints, is_selected) {
   _via_reg_ctx.strokeStyle = VIA_THEME_SEL_REGION_FILL_BOUNDARY_COLOR;
   _via_reg_ctx.lineWidth = VIA_THEME_REGION_BOUNDARY_WIDTH / 2;
   _via_reg_ctx.beginPath();
@@ -12208,7 +12281,41 @@ function _via_draw_skeleton_region(attr, is_selected) {
   }
   _via_reg_ctx.stroke();
 
-  for (const point of [...head, ...top, ...bottom]) {
-    _via_draw_control_point(point.x, point.y);
+  if (is_selected) {
+    for (const point of [...head, ...top, ...bottom]) {
+      _via_draw_control_point(point.x, point.y);
+    }
+  }
+}
+
+function is_inside_skeleton(joints, px, py) {
+  const poly = [
+    joints[_EXT_JOINT_TYPE.LeftWrist],
+    joints[_EXT_JOINT_TYPE.LeftElbow],
+    joints[_EXT_JOINT_TYPE.LeftShoulder],
+    joints[_EXT_JOINT_TYPE.HeadTop],
+    joints[_EXT_JOINT_TYPE.RightShoulder],
+    joints[_EXT_JOINT_TYPE.RightElbow],
+    joints[_EXT_JOINT_TYPE.RightWrist],
+    joints[_EXT_JOINT_TYPE.RightHip],
+    joints[_EXT_JOINT_TYPE.RightKnee],
+    joints[_EXT_JOINT_TYPE.RightAnkle],
+    joints[_EXT_JOINT_TYPE.LeftAnkle],
+    joints[_EXT_JOINT_TYPE.LeftKnee],
+    joints[_EXT_JOINT_TYPE.LeftHip],
+  ];
+  const all_points_x = poly.map((joint) => joint.x);
+  const all_points_y = poly.map((joint) => joint.y);
+  return is_inside_polygon(all_points_x, all_points_y, px, py);
+}
+
+function _ext_deep_copy(joints) {
+  return JSON.parse(JSON.stringify(joints));
+}
+
+function _ext_move_joints(joints, move_x, move_y) {
+  for (const type of Object.values(_EXT_JOINT_TYPE)) {
+    joints[type].x += move_x;
+    joints[type].y += move_y;
   }
 }
