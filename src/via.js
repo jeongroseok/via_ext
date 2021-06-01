@@ -355,53 +355,6 @@ function file_region() {
   this.region_attributes = {}; // region attributes
 }
 
-var _ext_distorter = {};
-var _ext_bimg = undefined;
-
-async function _ext_init() {
-  const canvas = document.createElement("canvas");
-  canvas.id = "ext_canvas";
-  canvas.hidden = true;
-  document.body.appendChild(canvas);
-
-  _ext_distorter = FisheyeGl({
-    image: await img2base64("./gridGuide.png"),
-    selector: "#ext_canvas", // a canvas element to work with
-    lens: {
-      a: 1, // 0 to 4;  default 1
-      b: 1, // 0 to 4;  default 1
-      Fx: 0.0, // 0 to 4;  default 0.0
-      Fy: 0.0, // 0 to 4;  default 0.0
-      scale: 1, // 0 to 20; default 1.5
-    },
-    fov: {
-      x: 1, // 0 to 2; default 1
-      y: 1, // 0 to 2; default 1
-    },
-  });
-
-  _ext_bimg = document.createElement("img");
-  _via_img_panel.insertBefore(_ext_bimg, _via_reg_canvas);
-
-  document.getElementById("lens").addEventListener("change", ({ target }) => {
-    const value = target.value;
-    _ext_distorter.lens.Fx = _ext_distorter.lens.Fy = value / 100.0;
-    _ext_update_fisheye();
-  });
-}
-
-function _ext_show_img() {
-  _via_current_image.classList.remove("visible");
-  _ext_update_fisheye();
-  _ext_bimg.classList.add("visible");
-}
-
-function _ext_update_fisheye() {
-  _ext_distorter.setImage(_via_current_image.src, () => {
-    _ext_bimg.src = _ext_distorter.getSrc("image/png");
-  });
-}
-
 //
 // Initialization routine
 //
@@ -2083,7 +2036,6 @@ function _via_reg_canvas_dblclick_handler(e) {
 
 // user clicks on the canvas
 function _via_reg_canvas_mousedown_handler(e) {
-  console.log("_via_reg_canvas_mousedown_handler called");
   e.stopPropagation();
   _via_click_x0 = e.offsetX;
   _via_click_y0 = e.offsetY;
@@ -2122,16 +2074,16 @@ function _via_reg_canvas_mousedown_handler(e) {
         toggle_all_regions_selection(false);
       }
     }
-  } else {
+  } else if (!_via_is_region_selected) {
     if (region_id === -1) {
       // mousedown outside a region
       if (
         _via_current_shape !== VIA_REGION_SHAPE.POLYGON &&
         _via_current_shape !== VIA_REGION_SHAPE.POLYLINE &&
-        _via_current_shape !== VIA_REGION_SHAPE.POINT &&
-        _via_current_shape !== VIA_REGION_SHAPE.SKELETON
+        _via_current_shape !== VIA_REGION_SHAPE.POINT
       ) {
         // this is a bounding box drawing event
+        console.log("drawing region start");
         _via_is_user_drawing_region = true;
       }
     } else {
@@ -2146,7 +2098,6 @@ function _via_reg_canvas_mousedown_handler(e) {
 //  - new region drawing (including polygon)
 //  - moving/resizing/select/unselect existing region
 function _via_reg_canvas_mouseup_handler(e) {
-  console.log("_via_reg_canvas_mouseup_handler called");
   e.stopPropagation();
   _via_click_x1 = e.offsetX;
   _via_click_y1 = e.offsetY;
@@ -2440,10 +2391,9 @@ function _via_reg_canvas_mouseup_handler(e) {
     return;
   }
 
-  // 단일 클릭일때
-  // denotes a single click (= mouse down + mouse up)
+  // denotes a single click
   if (click_dx < VIA_MOUSE_CLICK_TOL || click_dy < VIA_MOUSE_CLICK_TOL) {
-    // 다각형을 그리는 중이면, 클릭할때 마다 포인트 추가
+    console.log("mouseup: single click");
     if (_via_is_user_drawing_polygon) {
       var canvas_x0 = Math.round(_via_click_x1);
       var canvas_y0 = Math.round(_via_click_y1);
@@ -2471,7 +2421,8 @@ function _via_reg_canvas_mouseup_handler(e) {
       }
     } else {
       var region_id = is_inside_region(_via_click_x0, _via_click_y0);
-      if (region_id >= 0) {
+      const region_selected = region_id >= 0;
+      if (region_selected) {
         // first click selects region
         // region 선택
         _via_user_sel_region_id = region_id;
@@ -2530,7 +2481,8 @@ function _via_reg_canvas_mouseup_handler(e) {
         show_message(
           "Region selected. If you intended to draw a region, click again inside the selected region to start drawing a region."
         );
-      } else {
+      }
+      if (!region_selected) {
         if (_via_is_user_drawing_region) {
           // clear all region selection
           _via_is_user_drawing_region = false;
@@ -2583,155 +2535,6 @@ function _via_reg_canvas_mouseup_handler(e) {
 
               annotation_editor_update_content();
               break;
-            // 스켈레톤 그리기 테스트
-            case VIA_REGION_SHAPE.SKELETON:
-              var x = 0;
-              var y = 0;
-              var point_region = undefined;
-              var canvas_point_region = undefined;
-
-              // HEAD
-              x = _via_click_x0;
-              y = _via_click_y0 - 40;
-              point_region = new file_region();
-              point_region.shape_attributes["name"] = VIA_REGION_SHAPE.POINT;
-              point_region.shape_attributes["cx"] = Math.round(
-                x * _via_canvas_scale
-              );
-              point_region.shape_attributes["cy"] = Math.round(
-                y * _via_canvas_scale
-              );
-              _via_img_metadata[_via_image_id].regions.push(point_region);
-
-              canvas_point_region = new file_region();
-              canvas_point_region.shape_attributes["name"] =
-                VIA_REGION_SHAPE.POINT;
-              canvas_point_region.shape_attributes["cx"] = Math.round(x);
-              canvas_point_region.shape_attributes["cy"] = Math.round(y);
-              _via_canvas_regions.push(canvas_point_region);
-
-              // BODY
-              x = _via_click_x0;
-              y = _via_click_y0;
-              point_region = new file_region();
-              point_region.shape_attributes["name"] = VIA_REGION_SHAPE.POINT;
-              point_region.shape_attributes["cx"] = Math.round(
-                x * _via_canvas_scale
-              );
-              point_region.shape_attributes["cy"] = Math.round(
-                y * _via_canvas_scale
-              );
-              _via_img_metadata[_via_image_id].regions.push(point_region);
-
-              canvas_point_region = new file_region();
-              canvas_point_region.shape_attributes["name"] =
-                VIA_REGION_SHAPE.POINT;
-              canvas_point_region.shape_attributes["cx"] = Math.round(x);
-              canvas_point_region.shape_attributes["cy"] = Math.round(y);
-              _via_canvas_regions.push(canvas_point_region);
-
-              // BODY2
-              x = _via_click_x0;
-              y = _via_click_y0 + 60;
-              point_region = new file_region();
-              point_region.shape_attributes["name"] = VIA_REGION_SHAPE.POINT;
-              point_region.shape_attributes["cx"] = Math.round(
-                x * _via_canvas_scale
-              );
-              point_region.shape_attributes["cy"] = Math.round(
-                y * _via_canvas_scale
-              );
-              _via_img_metadata[_via_image_id].regions.push(point_region);
-
-              canvas_point_region = new file_region();
-              canvas_point_region.shape_attributes["name"] =
-                VIA_REGION_SHAPE.POINT;
-              canvas_point_region.shape_attributes["cx"] = Math.round(x);
-              canvas_point_region.shape_attributes["cy"] = Math.round(y);
-              _via_canvas_regions.push(canvas_point_region);
-
-              // LEFT ARM
-              x = _via_click_x0 - 50;
-              y = _via_click_y0;
-              point_region = new file_region();
-              point_region.shape_attributes["name"] = VIA_REGION_SHAPE.POINT;
-              point_region.shape_attributes["cx"] = Math.round(
-                x * _via_canvas_scale
-              );
-              point_region.shape_attributes["cy"] = Math.round(
-                y * _via_canvas_scale
-              );
-              _via_img_metadata[_via_image_id].regions.push(point_region);
-
-              canvas_point_region = new file_region();
-              canvas_point_region.shape_attributes["name"] =
-                VIA_REGION_SHAPE.POINT;
-              canvas_point_region.shape_attributes["cx"] = Math.round(x);
-              canvas_point_region.shape_attributes["cy"] = Math.round(y);
-              _via_canvas_regions.push(canvas_point_region);
-
-              // RIGHT ARM
-              x = _via_click_x0 + 50;
-              y = _via_click_y0;
-              point_region = new file_region();
-              point_region.shape_attributes["name"] = VIA_REGION_SHAPE.POINT;
-              point_region.shape_attributes["cx"] = Math.round(
-                x * _via_canvas_scale
-              );
-              point_region.shape_attributes["cy"] = Math.round(
-                y * _via_canvas_scale
-              );
-              _via_img_metadata[_via_image_id].regions.push(point_region);
-
-              canvas_point_region = new file_region();
-              canvas_point_region.shape_attributes["name"] =
-                VIA_REGION_SHAPE.POINT;
-              canvas_point_region.shape_attributes["cx"] = Math.round(x);
-              canvas_point_region.shape_attributes["cy"] = Math.round(y);
-              _via_canvas_regions.push(canvas_point_region);
-
-              // LEFT FOOT
-              x = _via_click_x0 - 50;
-              y = _via_click_y0 + 90;
-              point_region = new file_region();
-              point_region.shape_attributes["name"] = VIA_REGION_SHAPE.POINT;
-              point_region.shape_attributes["cx"] = Math.round(
-                x * _via_canvas_scale
-              );
-              point_region.shape_attributes["cy"] = Math.round(
-                y * _via_canvas_scale
-              );
-              _via_img_metadata[_via_image_id].regions.push(point_region);
-
-              canvas_point_region = new file_region();
-              canvas_point_region.shape_attributes["name"] =
-                VIA_REGION_SHAPE.POINT;
-              canvas_point_region.shape_attributes["cx"] = Math.round(x);
-              canvas_point_region.shape_attributes["cy"] = Math.round(y);
-              _via_canvas_regions.push(canvas_point_region);
-
-              // RIGHT FOOT
-              x = _via_click_x0 + 50;
-              y = _via_click_y0 + 90;
-              point_region = new file_region();
-              point_region.shape_attributes["name"] = VIA_REGION_SHAPE.POINT;
-              point_region.shape_attributes["cx"] = Math.round(
-                x * _via_canvas_scale
-              );
-              point_region.shape_attributes["cy"] = Math.round(
-                y * _via_canvas_scale
-              );
-              _via_img_metadata[_via_image_id].regions.push(point_region);
-
-              canvas_point_region = new file_region();
-              canvas_point_region.shape_attributes["name"] =
-                VIA_REGION_SHAPE.POINT;
-              canvas_point_region.shape_attributes["cx"] = Math.round(x);
-              canvas_point_region.shape_attributes["cy"] = Math.round(y);
-              _via_canvas_regions.push(canvas_point_region);
-
-              annotation_editor_update_content();
-              break;
           }
         }
       }
@@ -2755,156 +2558,198 @@ function _via_reg_canvas_mouseup_handler(e) {
     var region_dy = Math.abs(region_y1 - region_y0);
     var new_region_added = false;
 
-    if (region_dx > VIA_REGION_MIN_DIM && region_dy > VIA_REGION_MIN_DIM) {
+    const valid_dim =
+      region_dx > VIA_REGION_MIN_DIM && region_dy > VIA_REGION_MIN_DIM;
+    if (!valid_dim) {
       // avoid regions with 0 dim
-      switch (_via_current_shape) {
-        case VIA_REGION_SHAPE.RECT:
-          // ensure that (x0,y0) is top-left and (x1,y1) is bottom-right
-          if (_via_click_x0 < _via_click_x1) {
-            region_x0 = _via_click_x0;
-            region_x1 = _via_click_x1;
-          } else {
-            region_x0 = _via_click_x1;
-            region_x1 = _via_click_x0;
-          }
-
-          if (_via_click_y0 < _via_click_y1) {
-            region_y0 = _via_click_y0;
-            region_y1 = _via_click_y1;
-          } else {
-            region_y0 = _via_click_y1;
-            region_y1 = _via_click_y0;
-          }
-
-          var x = Math.round(region_x0 * _via_canvas_scale);
-          var y = Math.round(region_y0 * _via_canvas_scale);
-          var width = Math.round(region_dx * _via_canvas_scale);
-          var height = Math.round(region_dy * _via_canvas_scale);
-          original_img_region.shape_attributes["name"] = "rect";
-          original_img_region.shape_attributes["x"] = x;
-          original_img_region.shape_attributes["y"] = y;
-          original_img_region.shape_attributes["width"] = width;
-          original_img_region.shape_attributes["height"] = height;
-
-          canvas_img_region.shape_attributes["name"] = "rect";
-          canvas_img_region.shape_attributes["x"] = Math.round(
-            x / _via_canvas_scale
-          );
-          canvas_img_region.shape_attributes["y"] = Math.round(
-            y / _via_canvas_scale
-          );
-          canvas_img_region.shape_attributes["width"] = Math.round(
-            width / _via_canvas_scale
-          );
-          canvas_img_region.shape_attributes["height"] = Math.round(
-            height / _via_canvas_scale
-          );
-
-          new_region_added = true;
-          break;
-
-        case VIA_REGION_SHAPE.CIRCLE:
-          var cx = Math.round(region_x0 * _via_canvas_scale);
-          var cy = Math.round(region_y0 * _via_canvas_scale);
-          var r = Math.round(
-            Math.sqrt(region_dx * region_dx + region_dy * region_dy) *
-              _via_canvas_scale
-          );
-
-          original_img_region.shape_attributes["name"] = "circle";
-          original_img_region.shape_attributes["cx"] = cx;
-          original_img_region.shape_attributes["cy"] = cy;
-          original_img_region.shape_attributes["r"] = r;
-
-          canvas_img_region.shape_attributes["name"] = "circle";
-          canvas_img_region.shape_attributes["cx"] = Math.round(
-            cx / _via_canvas_scale
-          );
-          canvas_img_region.shape_attributes["cy"] = Math.round(
-            cy / _via_canvas_scale
-          );
-          canvas_img_region.shape_attributes["r"] = Math.round(
-            r / _via_canvas_scale
-          );
-
-          new_region_added = true;
-          break;
-
-        case VIA_REGION_SHAPE.ELLIPSE:
-          var cx = Math.round(region_x0 * _via_canvas_scale);
-          var cy = Math.round(region_y0 * _via_canvas_scale);
-          var rx = Math.round(region_dx * _via_canvas_scale);
-          var ry = Math.round(region_dy * _via_canvas_scale);
-          var theta = 0;
-
-          original_img_region.shape_attributes["name"] = "ellipse";
-          original_img_region.shape_attributes["cx"] = cx;
-          original_img_region.shape_attributes["cy"] = cy;
-          original_img_region.shape_attributes["rx"] = rx;
-          original_img_region.shape_attributes["ry"] = ry;
-          original_img_region.shape_attributes["theta"] = theta;
-
-          canvas_img_region.shape_attributes["name"] = "ellipse";
-          canvas_img_region.shape_attributes["cx"] = Math.round(
-            cx / _via_canvas_scale
-          );
-          canvas_img_region.shape_attributes["cy"] = Math.round(
-            cy / _via_canvas_scale
-          );
-          canvas_img_region.shape_attributes["rx"] = Math.round(
-            rx / _via_canvas_scale
-          );
-          canvas_img_region.shape_attributes["ry"] = Math.round(
-            ry / _via_canvas_scale
-          );
-          canvas_img_region.shape_attributes["theta"] = theta;
-
-          new_region_added = true;
-          break;
-
-        case VIA_REGION_SHAPE.POINT: // handled by case VIA_REGION_SHAPE.POLYGON
-        case VIA_REGION_SHAPE.POLYLINE: // handled by case VIA_REGION_SHAPE.POLYGON
-        case VIA_REGION_SHAPE.POLYGON:
-          // handled by _via_is_user_drawing_polygon
-          break;
-      } // end of switch
-
-      if (new_region_added) {
-        var n1 =
-          _via_img_metadata[_via_image_id].regions.push(original_img_region);
-        var n2 = _via_canvas_regions.push(canvas_img_region);
-
-        if (n1 !== n2) {
-          console.log(
-            "_via_img_metadata.regions[" +
-              n1 +
-              "] and _via_canvas_regions[" +
-              n2 +
-              "] count mismatch"
-          );
-        }
-        var new_region_id = n1 - 1;
-
-        set_region_annotations_to_default_value(new_region_id);
-        select_only_region(new_region_id);
-        if (
-          _via_annotation_editor_mode ===
-            VIA_ANNOTATION_EDITOR_MODE.ALL_REGIONS &&
-          _via_metadata_being_updated === "region"
-        ) {
-          annotation_editor_add_row(new_region_id);
-          annotation_editor_scroll_to_row(new_region_id);
-          annotation_editor_clear_row_highlight();
-          annotation_editor_highlight_row(new_region_id);
-        }
-        annotation_editor_show();
-      }
-      _via_redraw_reg_canvas();
-      _via_reg_canvas.focus();
-    } else {
       show_message("Prevented accidental addition of a very small region.");
+      return;
     }
-    return;
+
+    switch (_via_current_shape) {
+      case VIA_REGION_SHAPE.RECT:
+        // ensure that (x0,y0) is top-left and (x1,y1) is bottom-right
+        if (_via_click_x0 < _via_click_x1) {
+          region_x0 = _via_click_x0;
+          region_x1 = _via_click_x1;
+        } else {
+          region_x0 = _via_click_x1;
+          region_x1 = _via_click_x0;
+        }
+
+        if (_via_click_y0 < _via_click_y1) {
+          region_y0 = _via_click_y0;
+          region_y1 = _via_click_y1;
+        } else {
+          region_y0 = _via_click_y1;
+          region_y1 = _via_click_y0;
+        }
+
+        var x = Math.round(region_x0 * _via_canvas_scale);
+        var y = Math.round(region_y0 * _via_canvas_scale);
+        var width = Math.round(region_dx * _via_canvas_scale);
+        var height = Math.round(region_dy * _via_canvas_scale);
+        original_img_region.shape_attributes["name"] = "rect";
+        original_img_region.shape_attributes["x"] = x;
+        original_img_region.shape_attributes["y"] = y;
+        original_img_region.shape_attributes["width"] = width;
+        original_img_region.shape_attributes["height"] = height;
+
+        canvas_img_region.shape_attributes["name"] = "rect";
+        canvas_img_region.shape_attributes["x"] = Math.round(
+          x / _via_canvas_scale
+        );
+        canvas_img_region.shape_attributes["y"] = Math.round(
+          y / _via_canvas_scale
+        );
+        canvas_img_region.shape_attributes["width"] = Math.round(
+          width / _via_canvas_scale
+        );
+        canvas_img_region.shape_attributes["height"] = Math.round(
+          height / _via_canvas_scale
+        );
+
+        new_region_added = true;
+        break;
+
+      case VIA_REGION_SHAPE.CIRCLE:
+        var cx = Math.round(region_x0 * _via_canvas_scale);
+        var cy = Math.round(region_y0 * _via_canvas_scale);
+        var r = Math.round(
+          Math.sqrt(region_dx * region_dx + region_dy * region_dy) *
+            _via_canvas_scale
+        );
+
+        original_img_region.shape_attributes["name"] = "circle";
+        original_img_region.shape_attributes["cx"] = cx;
+        original_img_region.shape_attributes["cy"] = cy;
+        original_img_region.shape_attributes["r"] = r;
+
+        canvas_img_region.shape_attributes["name"] = "circle";
+        canvas_img_region.shape_attributes["cx"] = Math.round(
+          cx / _via_canvas_scale
+        );
+        canvas_img_region.shape_attributes["cy"] = Math.round(
+          cy / _via_canvas_scale
+        );
+        canvas_img_region.shape_attributes["r"] = Math.round(
+          r / _via_canvas_scale
+        );
+
+        new_region_added = true;
+        break;
+
+      case VIA_REGION_SHAPE.ELLIPSE:
+        var cx = Math.round(region_x0 * _via_canvas_scale);
+        var cy = Math.round(region_y0 * _via_canvas_scale);
+        var rx = Math.round(region_dx * _via_canvas_scale);
+        var ry = Math.round(region_dy * _via_canvas_scale);
+        var theta = 0;
+
+        original_img_region.shape_attributes["name"] = "ellipse";
+        original_img_region.shape_attributes["cx"] = cx;
+        original_img_region.shape_attributes["cy"] = cy;
+        original_img_region.shape_attributes["rx"] = rx;
+        original_img_region.shape_attributes["ry"] = ry;
+        original_img_region.shape_attributes["theta"] = theta;
+
+        canvas_img_region.shape_attributes["name"] = "ellipse";
+        canvas_img_region.shape_attributes["cx"] = Math.round(
+          cx / _via_canvas_scale
+        );
+        canvas_img_region.shape_attributes["cy"] = Math.round(
+          cy / _via_canvas_scale
+        );
+        canvas_img_region.shape_attributes["rx"] = Math.round(
+          rx / _via_canvas_scale
+        );
+        canvas_img_region.shape_attributes["ry"] = Math.round(
+          ry / _via_canvas_scale
+        );
+        canvas_img_region.shape_attributes["theta"] = theta;
+
+        new_region_added = true;
+        break;
+
+      case VIA_REGION_SHAPE.POINT: // handled by case VIA_REGION_SHAPE.POLYGON
+      case VIA_REGION_SHAPE.POLYLINE: // handled by case VIA_REGION_SHAPE.POLYGON
+      case VIA_REGION_SHAPE.POLYGON:
+        // handled by _via_is_user_drawing_polygon
+        break;
+      //// 추가된 코드 시작
+      case VIA_REGION_SHAPE.SKELETON:
+        // left-top, right-bottom 위치 보정
+        if (_via_click_x0 < _via_click_x1) {
+          region_x0 = _via_click_x0;
+          region_x1 = _via_click_x1;
+        } else {
+          region_x0 = _via_click_x1;
+          region_x1 = _via_click_x0;
+        }
+
+        if (_via_click_y0 < _via_click_y1) {
+          region_y0 = _via_click_y0;
+          region_y1 = _via_click_y1;
+        } else {
+          region_y0 = _via_click_y1;
+          region_y1 = _via_click_y0;
+        }
+
+        const name = VIA_REGION_SHAPE.SKELETON;
+        var x = Math.round(region_x0 * _via_canvas_scale);
+        var y = Math.round(region_y0 * _via_canvas_scale);
+        var width = Math.round(region_dx * _via_canvas_scale);
+        var height = Math.round(region_dy * _via_canvas_scale);
+
+        original_img_region.shape_attributes =
+          _ext_create_skeleton_shape_attribute(x, y, width, height);
+        canvas_img_region.shape_attributes =
+          _ext_create_skeleton_shape_attribute(
+            x,
+            y,
+            width,
+            height,
+            1 / _via_canvas_scale
+          );
+
+        new_region_added = true;
+        console.log("mouseup에서 skeleton region added");
+        break;
+      //// 추가된 코드 끝
+    } // end of switch
+
+    if (new_region_added) {
+      var n1 =
+        _via_img_metadata[_via_image_id].regions.push(original_img_region);
+      var n2 = _via_canvas_regions.push(canvas_img_region);
+
+      if (n1 !== n2) {
+        console.log(
+          "_via_img_metadata.regions[" +
+            n1 +
+            "] and _via_canvas_regions[" +
+            n2 +
+            "] count mismatch"
+        );
+      }
+      var new_region_id = n1 - 1;
+
+      set_region_annotations_to_default_value(new_region_id);
+      select_only_region(new_region_id);
+      if (
+        _via_annotation_editor_mode ===
+          VIA_ANNOTATION_EDITOR_MODE.ALL_REGIONS &&
+        _via_metadata_being_updated === "region"
+      ) {
+        annotation_editor_add_row(new_region_id);
+        annotation_editor_scroll_to_row(new_region_id);
+        annotation_editor_clear_row_highlight();
+        annotation_editor_highlight_row(new_region_id);
+      }
+      annotation_editor_show();
+    }
+    _via_redraw_reg_canvas();
+    _via_reg_canvas.focus();
   }
 }
 
@@ -3607,6 +3452,10 @@ function draw_all_regions() {
       case VIA_REGION_SHAPE.POINT:
         _via_draw_point_region(attr["cx"], attr["cy"], is_selected);
         break;
+
+      case VIA_REGION_SHAPE.SKELETON:
+        _via_draw_skeleton_region(attr, is_selected);
+        break;
     }
   }
 }
@@ -4218,8 +4067,10 @@ function is_left(x0, y0, x1, y1, x2, y2) {
 }
 
 function is_on_region_corner(px, py) {
+  // region id, 코너 id[lt = 1, rt = 2, rb = 3, lb = 4]
   var _via_region_edge = [-1, -1]; // region_id, corner_id [top-left=1,top-right=2,bottom-right=3,bottom-left=4]
 
+  // 캔버스에 존재하는 모든 regions을 순회
   for (var i = 0; i < _via_canvas_regions.length; ++i) {
     var attr = _via_canvas_regions[i].shape_attributes;
     var result = false;
@@ -12128,7 +11979,7 @@ function polygon_to_bbox(pts) {
   return [xmin, ymin, xmax - xmin, ymax - ymin];
 }
 
-function img2base64(url) {
+function _ext_img2base64(url) {
   return new Promise((resolve, reject) => {
     let xhr = new XMLHttpRequest();
     xhr.onload = () => {
@@ -12142,4 +11993,222 @@ function img2base64(url) {
     xhr.responseType = "blob";
     xhr.send();
   });
+}
+
+var _ext_distorter = {};
+var _ext_bimg = undefined;
+
+async function _ext_init() {
+  const canvas = document.createElement("canvas");
+  canvas.id = "ext_canvas";
+  canvas.hidden = true;
+  document.body.appendChild(canvas);
+
+  _ext_distorter = FisheyeGl({
+    image: await _ext_img2base64("./gridGuide.png"),
+    selector: "#ext_canvas", // a canvas element to work with
+    lens: {
+      a: 1, // 0 to 4;  default 1
+      b: 1, // 0 to 4;  default 1
+      Fx: 0.0, // 0 to 4;  default 0.0
+      Fy: 0.0, // 0 to 4;  default 0.0
+      scale: 1, // 0 to 20; default 1.5
+    },
+    fov: {
+      x: 1, // 0 to 2; default 1
+      y: 1, // 0 to 2; default 1
+    },
+  });
+
+  _ext_bimg = document.createElement("img");
+  _via_img_panel.insertBefore(_ext_bimg, _via_reg_canvas);
+
+  document.getElementById("lens").addEventListener("change", ({ target }) => {
+    const value = target.value;
+    _ext_distorter.lens.Fx = _ext_distorter.lens.Fy = value / 100.0;
+    _ext_update_fisheye();
+  });
+}
+
+function _ext_show_img() {
+  _via_current_image.classList.remove("visible");
+  _ext_update_fisheye();
+  _ext_bimg.classList.add("visible");
+}
+
+function _ext_update_fisheye() {
+  _ext_distorter.setImage(_via_current_image.src, () => {
+    _ext_bimg.src = _ext_distorter.getSrc("image/png");
+  });
+}
+
+const _EXT_JOINT_TYPE = {
+  RightAnkle: "Right Ankle",
+  RightKnee: "Right Knee",
+  RightHip: "Right Hip",
+  LeftHip: "Left Hip",
+  LeftKnee: "Left Knee",
+  LeftAnkle: "Left Ankle",
+  RightWrist: "Right Wrist",
+  RightElbow: "Right Elbow",
+  RightShoulder: "Right Shoulder",
+  LeftShoulder: "Left Shoulder",
+  LeftElbow: "Left Elbow",
+  LeftWrist: "Left Wrist",
+  HeadBottom: "Head-bottom",
+  Nose: "Nose",
+  HeadTop: "Head-top",
+};
+
+function _ext_create_skeleton_shape_attribute(x, y, width, height, scale = 1) {
+  const centerX = x + width / 2;
+  // 머리: 7등신으로 가정 하고, 코는 머리의 2/3
+  const headHeight = height / 7;
+  const head = {
+    [_EXT_JOINT_TYPE.HeadTop]: {
+      x: centerX,
+      y,
+    },
+    [_EXT_JOINT_TYPE.Nose]: {
+      x: centerX,
+      y: y + (headHeight / 3) * 2,
+    },
+    [_EXT_JOINT_TYPE.HeadBottom]: {
+      x: centerX,
+      y: y + headHeight,
+    },
+  };
+
+  // 상체: 3/7
+  const topHeight = headHeight * 3;
+  const topY = y + headHeight;
+  const topWidth = width;
+  const top = {
+    // 손목
+    [_EXT_JOINT_TYPE.LeftWrist]: {
+      x: x,
+      y: topY + topHeight * 0.9,
+    },
+    [_EXT_JOINT_TYPE.RightWrist]: {
+      x: x + topWidth,
+      y: topY + topHeight * 0.9,
+    },
+
+    // 팔꿈치
+    [_EXT_JOINT_TYPE.LeftElbow]: {
+      x: x + topWidth * 0.1,
+      y: topY + topHeight * 0.4,
+    },
+    [_EXT_JOINT_TYPE.RightElbow]: {
+      x: x + topWidth - topWidth * 0.1,
+      y: topY + topHeight * 0.4,
+    },
+
+    // 어깨
+    [_EXT_JOINT_TYPE.LeftShoulder]: {
+      x: x + topWidth * 0.2,
+      y: topY + topHeight * 0.15,
+    },
+    [_EXT_JOINT_TYPE.RightShoulder]: {
+      x: x + topWidth - topWidth * 0.2,
+      y: topY + topHeight * 0.15,
+    },
+  };
+
+  // 하체: 3/7
+  const bottomHeight = headHeight * 3;
+  const bottomY = y + headHeight + topHeight;
+  const bottomWidth = width * 0.5;
+  const bottom = {
+    // 발목
+    [_EXT_JOINT_TYPE.LeftAnkle]: {
+      x: centerX - bottomWidth / 2,
+      y: bottomY + bottomHeight,
+    },
+    [_EXT_JOINT_TYPE.RightAnkle]: {
+      x: centerX + bottomWidth / 2,
+      y: bottomY + bottomHeight,
+    },
+
+    // 무릎
+    [_EXT_JOINT_TYPE.LeftKnee]: {
+      x: centerX - bottomWidth / 2,
+      y: bottomY + bottomHeight * 0.4,
+    },
+    [_EXT_JOINT_TYPE.RightKnee]: {
+      x: centerX + bottomWidth / 2,
+      y: bottomY + bottomHeight * 0.4,
+    },
+
+    // 엉덩이
+    [_EXT_JOINT_TYPE.LeftHip]: {
+      x: centerX - bottomWidth / 2,
+      y: bottomY + bottomHeight * 0.1,
+    },
+    [_EXT_JOINT_TYPE.RightHip]: {
+      x: centerX + bottomWidth / 2,
+      y: bottomY + bottomHeight * 0.1,
+    },
+  };
+
+  return {
+    name: VIA_REGION_SHAPE.SKELETON,
+    joints: { ...head, ...top, ...bottom },
+  };
+}
+
+function _via_draw_skeleton_region(attr, is_selected) {
+  const { joints } = attr;
+
+  _via_reg_ctx.strokeStyle = VIA_THEME_SEL_REGION_FILL_BOUNDARY_COLOR;
+  _via_reg_ctx.lineWidth = VIA_THEME_REGION_BOUNDARY_WIDTH / 2;
+  _via_reg_ctx.beginPath();
+
+  const head = [
+    joints[_EXT_JOINT_TYPE.HeadTop],
+    joints[_EXT_JOINT_TYPE.HeadBottom],
+    joints[_EXT_JOINT_TYPE.Nose],
+  ];
+
+  _via_reg_ctx.moveTo(head[0].x, head[0].y);
+  for (const point of head) {
+    _via_reg_ctx.lineTo(point.x, point.y);
+  }
+  _via_reg_ctx.stroke();
+
+  const top = [
+    joints[_EXT_JOINT_TYPE.LeftWrist],
+    joints[_EXT_JOINT_TYPE.LeftElbow],
+    joints[_EXT_JOINT_TYPE.LeftShoulder],
+    joints[_EXT_JOINT_TYPE.HeadBottom],
+    joints[_EXT_JOINT_TYPE.RightShoulder],
+    joints[_EXT_JOINT_TYPE.RightElbow],
+    joints[_EXT_JOINT_TYPE.RightWrist],
+  ];
+
+  _via_reg_ctx.moveTo(top[0].x, top[0].y);
+  for (const point of top) {
+    _via_reg_ctx.lineTo(point.x, point.y);
+  }
+  _via_reg_ctx.stroke();
+
+  const bottom = [
+    joints[_EXT_JOINT_TYPE.LeftAnkle],
+    joints[_EXT_JOINT_TYPE.LeftKnee],
+    joints[_EXT_JOINT_TYPE.LeftHip],
+    joints[_EXT_JOINT_TYPE.HeadBottom],
+    joints[_EXT_JOINT_TYPE.RightHip],
+    joints[_EXT_JOINT_TYPE.RightKnee],
+    joints[_EXT_JOINT_TYPE.RightAnkle],
+  ];
+
+  _via_reg_ctx.moveTo(bottom[0].x, bottom[0].y);
+  for (const point of bottom) {
+    _via_reg_ctx.lineTo(point.x, point.y);
+  }
+  _via_reg_ctx.stroke();
+
+  for (const point of [...head, ...top, ...bottom]) {
+    _via_draw_control_point(point.x, point.y);
+  }
 }

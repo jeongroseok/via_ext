@@ -1,31 +1,28 @@
-Code Documentation for VGG Image Annotator 2.0
-==============================================
+# Code Documentation for VGG Image Annotator 2.0
 
 Author: [Abhishek Dutta](mailto:adutta_REMOVE_@robots.ox.ac.uk), Version: Jan. 2017
 
 > This code documentation is based on VIA-1.0.x version. While there are some
-> major differences between VIA-1.0.x and VIA-2.0.y codebase, this code 
+> major differences between VIA-1.0.x and VIA-2.0.y codebase, this code
 > documentation is still useful to understand the basic architecture and working
 > of the VIA software.
 
 VGG Image Annotator (VIA) application is contained in a single html file
 with definitions of CSS style and Javascript code blocks.
 
-The VIA application code [`via.html`](https://gitlab.com/vgg/via/blob/develop/via.html) 
+The VIA application code [`via.html`](https://gitlab.com/vgg/via/blob/develop/via.html)
 has the following structure:
 
 ```html
-<!DOCTYPE html> 
-<html lang="en"> 
-<head> 
-  [source code license declaration] 
-  [html meta tags definition] 
-  [css definition] 
-</head> 
-<body onload="_via_init()" onresize="_via_update_ui_components()" > 
-  [html content definition] 
-  [javascript definition] 
-</body> 
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    [source code license declaration] [html meta tags definition] [css
+    definition]
+  </head>
+  <body onload="_via_init()" onresize="_via_update_ui_components()">
+    [html content definition] [javascript definition]
+  </body>
 </html>
 ```
 
@@ -46,26 +43,30 @@ Now we describe how some of the core actions (like loading images,
 drawing regions, etc) are facilitated by the javascript codebase.
 
 ## Table of Contents
- * [Description of VIA Project JSON File](#description-of-via-project-json-file)
- * [Core Data Structures](#core-data-structures)
- * [Loading Images](#loading-images)
- * [Displaying Image](#displaying-image)
- * [Moving to Next/Previous Images](#moving-to-nextprevious-images)
- * [Capturing User's Mouse Interactions](#capturing-users-mouse-interactions)
- * [Rendering Regions](#rendering-regions)
- * [Moving and Resizing Regions](#moving-and-resizing-regions)
- * [Updating Attribute Value](#updating-attribute-value)
- * [Adding New Attributes](#adding-new-attributes)
- * [Download Annotations](#download-annotations)
- * [Importing Annotations](#importing-annotations)
- * [Building Applications using VIA as a Module](#building-applications-using-via-as-a-module)
- * [Source Code License](#source-code-license)
 
-Description of VIA Project JSON File
-------------------------------------
+- [Code Documentation for VGG Image Annotator 2.0](#code-documentation-for-vgg-image-annotator-20)
+  - [Table of Contents](#table-of-contents)
+  - [Description of VIA Project JSON File](#description-of-via-project-json-file)
+  - [Core Data Structures](#core-data-structures)
+  - [Loading Images](#loading-images)
+  - [Displaying Image](#displaying-image)
+  - [Moving to Next/Previous Images](#moving-to-nextprevious-images)
+  - [Capturing User's Mouse Interactions](#capturing-users-mouse-interactions)
+  - [Rendering Regions](#rendering-regions)
+  - [Moving and Resizing Regions](#moving-and-resizing-regions)
+  - [Updating Attribute Value](#updating-attribute-value)
+  - [Adding New Attributes](#adding-new-attributes)
+  - [Download Annotations](#download-annotations)
+  - [Importing Annotations](#importing-annotations)
+  - [Building Applications using VIA as a Module](#building-applications-using-via-as-a-module)
+  - [Source Code License](#source-code-license)
+
+## Description of VIA Project JSON File
+
 A VIA project is simply a JSON file containing all the details associated with
 the project. Here is an annotated example of a project JSON file.
-```
+
+```jsonc
 {
   "_via_settings": {                # settings used by the VIA application
     "ui": {
@@ -102,16 +103,16 @@ the project. Here is an annotated example of a project JSON file.
       "filename": "adutta_swan.jpg",  # image filename
       "size": -1,                     # file size in bytes (-1 indicates unknown)
       "regions": [                    # an array of all manually defined regions (only 1 region here)
-        {                             
-          "shape_attributes": {       # shape of the first region
+        {
+          "shape_attributes": {       # first region의 모양 정보
             "name": "rect",           # region shape: {rect, polygon, circle, ellipse, point, ...}
             "x": 108,                 # x-coordinate of the top-left point
             "y": 123,                 # y-coordinate of the top-left point
             "width": 283,             # width of rectangle
             "height": 150             # height of rectangle
           },
-          "region_attributes": {      # attributes (i.e. metadata) of the first region
-            "name": "Swan"            # "name" is a region attribute and it has a value of "Swan"
+          "region_attributes": {      # first region의 속성(예. 메타데이터)
+            "name": "Swan"            # "name"은 key, "Swan"은 value
           }
         }
       ],
@@ -128,7 +129,7 @@ the project. Here is an annotated example of a project JSON file.
       }
     }
   },
-  "_via_attributes": {                # attributes that can be attached to image and its regions
+  "_via_attributes": {                # region이나 파일에 추가되는 속성들
     "region": {                       # definition of region attributes (i.e. attributes belonging to an image region)
       "name": {                       # "name" is region attribute which defines the name of the object contained in that region
         "type": "text",               # attribute type can be {text, dropdown, radio, checkbox, ...}
@@ -152,102 +153,114 @@ the project. Here is an annotated example of a project JSON file.
 }
 ```
 
-Core Data Structures
---------------------
+## Core Data Structures
 
 > "Bad programmers worry about the code. Good programmers worry about
 > data structures and their relationships."
 > [Linus Torvalds](https://lwn.net/Articles/193245/)
 
-The function `_via_get_image_id()` generates a unique `image_id` for
-each image by combining the image filename and image size in bytes. For
-example, the file `photo.jpg` of size `16454` bytes will
-get assigned an image-id `photo.jpg16454`.
+`_via_get_image_id()` 함수는 파일 이름과 크기를 이용해 고유한 `image_id`를 만든다.
+예를 들어, `16454` 크기의 `photo.jpg` 파일의 경우 `photo.jpg16454`를 반환한다.
 
-The annotation data corresponding to each image is stored in the object
-`_via_img_metadata` indexed by its unqiue `image_id`. Each such entry in
-`_via_img_metadata` is another object of type `ImageMetadata()` having
-the following properties:
+각 이미지에 대응되는 어노테이션 데이터는 `image_id`를 기준으로 `_via_img_metadata` 변수에 에 저장된다.
+`_via_img_metadata`의 각 엔트리는 `ImageMetadata()` 타입이며 아래 속성들을 갖는다:
 
- * `fileref` : a reference to the local file uploaded by user
- * `base64_img_data` : contains either the image URL or image data represented 
-in base64 format
- * `file_attributes` : a [Map()](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map) 
-of image file's attributes. For example, image captions can be represented by 
-file attributes as 
+- `fileref` : a reference to the local file uploaded by user
+- `base64_img_data` : contains either the image URL or image data represented
+  in base64 format
+- `file_attributes` : a [Map()](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map)
+  of image file's attributes. For example, image captions can be represented by
+  file attributes as
 
 ```
 Map { 'caption': 'a white football flying over a red car' }
 ```
 
- * `regions` : an array of `ImageRegion()` objects   
+- `regions` : an array of `ImageRegion()` objects
 
 Each image can have multiple regions of varying shape and attributes.
 Therefore, each array entry in `ImageMetadata.regions[]` contains an object of
-type `ImageRegion()` with the following properties corresponding to each 
+type `ImageRegion()` with the following properties corresponding to each
 region (rectangular, circular, polygon, etc) defined in the image:
 
- * `shape_attributes` : a [Map()](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map) 
-of attributes defining the shape of the region. For example, a rectangular 
-region has the following shape attributes 
+- `shape_attributes` : a [Map()](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map)
+  of attributes defining the shape of the region. For example, a rectangular
+  region has the following shape attributes
 
 ```
 Map {'name': 'rect', 'x': '115', 'y': '210', 'width': '100', 'height': '200' }
 ```
 
- * `region_attributes` : a [Map()](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map) 
-of attributes corresponding to the region. For example, an image region 
-containing a red car can have the following attributes
+- `region_attributes` : a [Map()](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map)
+  of attributes corresponding to the region. For example, an image region
+  containing a red car can have the following attributes
 
 ```
 Map { 'object\_name': 'car', 'object\_color': 'red' }
 ```
 
- * `is_user_selected` : a state variable indicating if this region has been 
-selected by the user
+- `is_user_selected` : 선택 유무를 나타내는 상태 변수
 
+다음은 파일 속성과 region 어노테이션을 어떻게 저장하는지 보여주는 예제이다.
 Here is an example of how VIA would store file attribute and two region
 annotations for a file `photo.jpg` in `_via_img_metadata` object:
 
 ```javascript
-var img_id = _via_get_image_id('photo.jpg', 16454);
+var img_id = _via_get_image_id("photo.jpg", 16454);
 var _via_img_metadata = {};
-_via_img_metadata[img_id] = new ImageMetadata('', 'photo.jpg', 16454);
+_via_img_metadata[img_id] = new ImageMetadata("", "photo.jpg", 16454);
 
-_via_img_metadata[img_id].file_attributes.set('caption', 'a white football flying over a red car');
+_via_img_metadata[img_id].file_attributes.set(
+  "caption",
+  "a white football flying over a red car"
+);
 
 _via_img_metadata[img_id].regions[0] = new ImageRegion();
-_via_img_metadata[img_id].regions[0].shape_attributes.set('name', 'rect');
-_via_img_metadata[img_id].regions[0].shape_attributes.set('x', '115');
-_via_img_metadata[img_id].regions[0].shape_attributes.set('y', '210');
-_via_img_metadata[img_id].regions[0].shape_attributes.set('width', '100');
-_via_img_metadata[img_id].regions[0].shape_attributes.set('height', '200');
-_via_img_metadata[img_id].regions[0].region_attributes.set('object_name', 'car');
-_via_img_metadata[img_id].regions[0].region_attributes.set('object_color', 'red');
+_via_img_metadata[img_id].regions[0].shape_attributes.set("name", "rect");
+_via_img_metadata[img_id].regions[0].shape_attributes.set("x", "115");
+_via_img_metadata[img_id].regions[0].shape_attributes.set("y", "210");
+_via_img_metadata[img_id].regions[0].shape_attributes.set("width", "100");
+_via_img_metadata[img_id].regions[0].shape_attributes.set("height", "200");
+_via_img_metadata[img_id].regions[0].region_attributes.set(
+  "object_name",
+  "car"
+);
+_via_img_metadata[img_id].regions[0].region_attributes.set(
+  "object_color",
+  "red"
+);
 
 _via_img_metadata[img_id].regions[1] = new ImageRegion();
-_via_img_metadata[img_id].regions[1].shape_attributes.set('name', 'circle');
-_via_img_metadata[img_id].regions[1].shape_attributes.set('cx', '50');
-_via_img_metadata[img_id].regions[1].shape_attributes.set('cy', '90');
-_via_img_metadata[img_id].regions[1].shape_attributes.set('r', '20');
-_via_img_metadata[img_id].regions[1].region_attributes.set('object_name', 'football');
-_via_img_metadata[img_id].regions[1].region_attributes.set('object_color', 'white');
+_via_img_metadata[img_id].regions[1].shape_attributes.set("name", "circle");
+_via_img_metadata[img_id].regions[1].shape_attributes.set("cx", "50");
+_via_img_metadata[img_id].regions[1].shape_attributes.set("cy", "90");
+_via_img_metadata[img_id].regions[1].shape_attributes.set("r", "20");
+_via_img_metadata[img_id].regions[1].region_attributes.set(
+  "object_name",
+  "football"
+);
+_via_img_metadata[img_id].regions[1].region_attributes.set(
+  "object_color",
+  "white"
+);
 ```
 
 For the current image, we keep a copy of all region's coordinates in the
 canvas space inside the object `_via_canvas_regions`. Recall that the
 canvas space is related to the original image space by
 `_via_canvas_scale` (which is a scaling factor determined by the current
-browser window size and zoom level). In other words, 
+browser window size and zoom level). In other words,
+
 ```
 x_image_space = x_canvas_space * _via_canvas_scale.
 ```
-Maintaining such a data structure avoids unnecessary re-computation of region 
+
+Maintaining such a data structure avoids unnecessary re-computation of region
 coordinates in canvas space. Therefore, you will notice that
 `_via_canvas_regions[i].shape_attributes` is used when rendering region
 boundaries.
 
-VIA uses the [canvas](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) 
+VIA uses the [canvas](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
 to render image, region boundaries and region labels. The image currently
 being displayed is rendered by `_via_img_canvas` while the region
 boundaries and region labels are rendered by the canvas
@@ -255,16 +268,15 @@ boundaries and region labels are rendered by the canvas
 being on the top.
 
 The [Set()](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Set)
-of image region attributes is stored in the variable `_via_region_attributes`. 
+of image region attributes is stored in the variable `_via_region_attributes`.
 These attributes form the keys of the map
 `_via_img_metadata[img_id].regions[i].region_attributes`.
 
-A set of variables are used to maintain the state of the VIA application. These 
-state variable form a crucial component of user interactions. For 
+A set of variables are used to maintain the state of the VIA application. These
+state variable form a crucial component of user interactions. For
 example, `_via_is_user_drawing_region` is `true` when the user is drawing a region.
 
-Loading Images
---------------
+## Loading Images
 
 Loading (or adding) an image into VIA is initiated by
 `sel_local_images()`. Therefore, this function is attached to the
@@ -282,10 +294,9 @@ tasks:
    property of this object containts a reference to the local file
    selected by the user.
 3. Triggers `show_image()` (further discussed in [Displaying
-    Image](#displaying-image) section) to display the newly loaded image.
+   Image](#displaying-image) section) to display the newly loaded image.
 
-Displaying Image
-----------------
+## Displaying Image
 
 The VIA application displays one of the pre-loaded images using
 `show_image()`. This function uses
@@ -312,59 +323,52 @@ server or the image data is embedded in the VIA application code. If
 loaded from this resource, otherwise the image is loaded from
 `_via_img_metadata[img_id].fileref`.
 
-Moving to Next/Previous Images
-------------------------------
+## Moving to Next/Previous Images
 
 The methods `move_to_next_image()` and `move_to_prev_image()` handle the
 user requests to switch display to next or previous image. This boils
 down to invoking `show_image()` (see [Displaying Image](#displaying-image)
 section) with appropriate `image_index`.
 
-Capturing User's Mouse Interactions
------------------------------------
+## Capturing User's Mouse Interactions
 
-The following event listeners attached to `via_reg_canvas` handles user
-interactions using a mouse:
+아래의 이벤트 리스너들은 `via_reg_canvas`에 등록되어 유저 인터랙션을 관리한다:
 
- * `_via_reg_canvas.addEventListener('dblclick', function(e) { ... }` :   A 
-double click on an image region displays the region attribute panel at the 
-bottom to allow the user to add or update region attribute values.
+- `_via_reg_canvas.addEventListener('dblclick', function(e) { ... }` : A
+  double click on an image region displays the region attribute panel at the
+  bottom to allow the user to add or update region attribute values.
 
- * `_via_reg_canvas.addEventListener('mousedown', function(e) { ... }` : Handles 
-user interactions involving the following mouse gesture: mouse cursor is dragged 
-while pressing the mouse button. This corresponds to actions such as drawing a 
-region boundary (except polygon), resizing or moving regions. Furthermore, a 
-`mousedown` may also indicate a prelude to other events like a region 
-select/unselect.
+- `_via_reg_canvas.addEventListener('mousedown', function(e) { ... }` : Handles
+  user interactions involving the following mouse gesture: 누르상태로 드래깅. This corresponds to actions such as drawing a region boundary (except polygon), resizing or moving regions. Furthermore, a `mousedown` may also indicate a prelude to other events like a region
+  select/unselect.
 
- * `_via_reg_canvas.addEventListener('mouseup', function(e) { ... }` :
-   - The `mouseup` event may indicate that the user has finished 
-drawing a region, moving a region, resizing a region, etc.
-   - A combination of `mousedown` and `mouseup` events within a small region 
-indicates a single mouse click which indicates the user's intention to 
-select/unselect a region, define a vertex of polygon, or define a point.
+- `_via_reg_canvas.addEventListener('mouseup', function(e) { ... }` :
 
- * `_via_reg_canvas.addEventListener('mouseover, function(e) { ... }` : Forces 
-re-rendering of region boundaries and labels.
+  - The `mouseup` event may indicate that the user has finished
+    drawing a region, moving a region, resizing a region, etc.
+  - 작은 영역에서 발생하는 `mousedown`, `mouseup` 이벤트는 단일 클릭을 나타내며, 선택/선택취소, 다각형의 꼭지점 생성등의 작업을 할 수 있다.
 
- * `_via_reg_canvas.addEventListener('mousemove', function(e) { ... }` :
-   - When user is drawing, moving or resizing a region, a `mousemove` event 
-renders the region at new positions as the mouse cursor moves to give 
-interactive feedback to the user.
-   - When mouse cursor is moved over the region edge, this methods changes the 
-mouse cursor style to indicate region resize mode.
-   - In the polygon region shape mode, this function draws a temporary edge 
-from last defined polygon vertex to current user position.
+- `_via_reg_canvas.addEventListener('mouseover, function(e) { ... }` : Forces
+  re-rendering of region boundaries and labels.
+
+- `_via_reg_canvas.addEventListener('mousemove', function(e) { ... }` :
+  - When user is drawing, moving or resizing a region, a `mousemove` event
+    renders the region at new positions as the mouse cursor moves to give
+    interactive feedback to the user.
+  - When mouse cursor is moved over the region edge, this methods changes the
+    mouse cursor style to indicate region resize mode.
+    커서가 region의 가장자리에 놓이게 되면, 이 함수는 커서 스타일을 resize mode로 변경한다.
+  - In the polygon region shape mode, this function draws a temporary edge
+    from last defined polygon vertex to current user position.
 
 Each region draw, resize, move or select/unselect triggers re-rendering
 of region boundaries and labels using `_via_redraw_reg_canvas()` (see
 [Rendering Regions](#rendering-regions) section).
 
-Rendering Regions
------------------
+## Rendering Regions
 
 `_via_redraw_img_canvas()` renders images onto the canvas
-`_via_img_canvas` using [drawImage()](https://developer.mozilla.org/en/docs/Web/API/CanvasRenderingContext2D/drawImage). 
+`_via_img_canvas` using [drawImage()](https://developer.mozilla.org/en/docs/Web/API/CanvasRenderingContext2D/drawImage).
 Image is re-rendered only when the user zoom's in/out.
 
 Rendering of region boundaries is performed by `_via_redraw_reg_canvas`.
@@ -373,23 +377,25 @@ context `_via_reg_ctx` as follows:
 
 ```javascript
 function _via_draw_rect(x, y, w, h) {
-    _via_reg_ctx.beginPath();
-    _via_reg_ctx.moveTo(x  , y);
-    _via_reg_ctx.lineTo(x+w, y);
-    _via_reg_ctx.lineTo(x+w, y+h);
-    _via_reg_ctx.lineTo(x  , y+h);
-    _via_reg_ctx.closePath();
+  _via_reg_ctx.beginPath();
+  _via_reg_ctx.moveTo(x, y);
+  _via_reg_ctx.lineTo(x + w, y);
+  _via_reg_ctx.lineTo(x + w, y + h);
+  _via_reg_ctx.lineTo(x, y + h);
+  _via_reg_ctx.closePath();
 }
 
 function _via_draw_circle(cx, cy, r) {
-    _via_reg_ctx.beginPath();
-    _via_reg_ctx.arc(cx, cy, r, 0, 2*Math.PI, false);
-    _via_reg_ctx.closePath();
+  _via_reg_ctx.beginPath();
+  _via_reg_ctx.arc(cx, cy, r, 0, 2 * Math.PI, false);
+  _via_reg_ctx.closePath();
 }
 ```
 
-Moving and Resizing Regions
----------------------------
+## Moving and Resizing Regions
+
+region의 크기를 조절하거나 움직이려면 미리 선택되어있어야 한다.
+상태 변수를 설정 해야함: `_via_is_region_selected = true;`
 
 A region has to be selected before it can be moved or resized. A single
 click inside a region sets the state variable
@@ -422,16 +428,19 @@ _via_reg_canvas.addEventListener('mouseup', function(e) {
 }
 ```
 
+`mousedown`과 `mouseup` 이벤트가 짧게 발생할 경우, 클릭 이벤트가 발생한다는 사실을 상기하라.
+그리고, `is_inside_region()` 함수는 마우스 커서가 pre-defined region안에 있는지 확인한다.
 Recall that a click event is detected by checking if the mouse cursor
 position during the `mousedown` and `mouseup` events are
 close to each other. Furthermore, the function `is_inside_region()`
 checks if the mouse cursor position is inside a pre-defined region.
 
+region이 선택되어 있고, 크기 조절이나 이동하려면 `mousedown`에서 `_via_is_user_moving_region = true;` 해야함.
 Once a region has been selected, it can be moved around by clicking the
 mouse button, dragging the cursor around and finally releasing the mouse
 click when desired new location is reached. This mouse gesture is
-captured by `mousedown`, `mousemove` and `mouseup` events. First, the 
-`mousedown` event sets the state variable `_via_is_user_moving_region = true;` 
+captured by `mousedown`, `mousemove` and `mouseup` events. First, the
+`mousedown` event sets the state variable `_via_is_user_moving_region = true;`
 as follows:
 
 ```javascript
@@ -449,7 +458,7 @@ _via_reg_canvas.addEventListener('mousedown', function(e) {
                                             _via_click_y0,
                                             _via_user_sel_region_id);
             if (yes) {
-                if( !_via_is_user_moving_region ) {     
+                if( !_via_is_user_moving_region ) {
                     _via_is_user_moving_region = true;
                     _via_region_click_x = _via_click_x0;
                     _via_region_click_y = _via_click_y0;
@@ -460,6 +469,7 @@ _via_reg_canvas.addEventListener('mousedown', function(e) {
 }
 ```
 
+중간 단계를 화면에 표시 하려면 `mousemove`에서 아래 코드 snippet을 이용 해야함.
 Next, the `mousemove` event draws intermediate regions -- to aid
 with visualization -- as the user moves the mouse cursor towards the
 final destination as shown by the code snippet below:
@@ -471,7 +481,7 @@ _via_reg_canvas.addEventListener('mousemove', function(e) {
 
     if ( _via_is_user_moving_region ) {
         _via_redraw_reg_canvas();
-        
+
         var move_x = (_via_current_x - _via_region_click_x);
         var move_y = (_via_current_y - _via_region_click_y);
         var attr = _via_canvas_regions[_via_user_sel_region_id].shape_attributes;
@@ -493,12 +503,13 @@ _via_reg_canvas.addEventListener('mousemove', function(e) {
         case VIA_REGION_SHAPE.POINT:
             ...
         }
-        _via_reg_canvas.focus();    
+        _via_reg_canvas.focus();
     }
     ...
 }
 ```
 
+`mouseup`에서 적용함.
 Finally, the `mouseup` event moves the selected region to a new
 location as follows:
 
@@ -558,22 +569,21 @@ _via_reg_canvas.addEventListener('mouseup', function(e) {
 
 Some notes:
 
--   `_via_canvas_regions` contains the region coordinates in the canvas
-    space and therefore needs scaling by `_via_canvas_scale` to convert
-    it to the original image space coordinates stored in
-    `_via_img_metadata` (see [Core Data
-    Structures](#core_data_structures) section).
--   Moving circular, elliptical and point regions is conceptually
-    similar -- move their center coordinates -- and hence are handled by
-    a single code.
--   The same user mouse interactions occur for nested regions -- one
-    smaller region placed inside a larger region. Therefore, before
-    moving regions, we check if the movement of user cursor is beyond
-    certain tolerance. If it is below that level, we consider this as a
-    gesture to select other nested region.
+- `_via_canvas_regions` contains the region coordinates in the canvas
+  space and therefore needs scaling by `_via_canvas_scale` to convert
+  it to the original image space coordinates stored in
+  `_via_img_metadata` (see [Core Data
+  Structures](#core_data_structures) section).
+- Moving circular, elliptical and point regions is conceptually
+  similar -- move their center coordinates -- and hence are handled by
+  a single code.
+- The same user mouse interactions occur for nested regions -- one
+  smaller region placed inside a larger region. Therefore, before
+  moving regions, we check if the movement of user cursor is beyond
+  certain tolerance. If it is below that level, we consider this as a
+  gesture to select other nested region.
 
-Updating Attribute Value
-------------------------
+## Updating Attribute Value
 
 The update of region attributes is triggered by the function
 `toggle_reg_attr_panel()` toggles the region attribute panel in the
@@ -586,13 +596,11 @@ way, the update of file attributes are handled by
 The spreadsheet like editing environment is setup and handled by the
 function `init_spreadsheet_input()`.
 
-Adding New Attributes
----------------------
+## Adding New Attributes
 
 This is handled by the function `add_new_attribute()`.
 
-Download Annotations
---------------------
+## Download Annotations
 
 This action is initiated by the function `download_all_region_data()`.
 The conversion from `_via_img_metadata` object to a user requested
@@ -603,8 +611,7 @@ triggers the browser action to download this file to local disk.
 
 By default, the CSV export uses comma "," as the separating character.
 
-Importing Annotations
----------------------
+## Importing Annotations
 
 Importing existing annotation data (in CSV or JSON format) to VIA
 application is initiated by the function `sel_local_data_file()` which
@@ -613,25 +620,25 @@ selected, the function `import_annotations_from_file()` is triggered to
 import annotation and insert the valid ones into the `_via_img_metadata`
 object.
 
-Note: the CSV file containing annotation data should have comma "," as the 
+Note: the CSV file containing annotation data should have comma "," as the
 separating character.
 
-Building Applications using VIA as a Module
--------------------------------------------
-At the end of application initialization, VIA application invokes the function 
-`_via_load_submodules()` if it is defined in the Javascript global namespace. 
-This behaviour can be used to build a lot of interesting tools that rely on VIA 
-for the core functionality of image annotation. See the following for examples:
- * [via_demo.js](via_demo.js) : VIA application packaged together with some 
-images and their annotations for demonstration of VIA features.
- * [DMIAT](https://gitlab.com/vgg/via/tree/dmiat/) : Distributed Manual Image 
-Annotation Tool (DMIAT) is built on top of VIA and isolates the image annotators 
-from the technical details of loading images and saving/sending annotations. 
-   * images to be annotated are predefined in the form of http-image-url
-   * the annotations are automatically pushed to git repository
+## Building Applications using VIA as a Module
 
-Source Code License
--------------------
+At the end of application initialization, VIA application invokes the function
+`_via_load_submodules()` if it is defined in the Javascript global namespace.
+This behaviour can be used to build a lot of interesting tools that rely on VIA
+for the core functionality of image annotation. See the following for examples:
+
+- [via_demo.js](via_demo.js) : VIA application packaged together with some
+  images and their annotations for demonstration of VIA features.
+- [DMIAT](https://gitlab.com/vgg/via/tree/dmiat/) : Distributed Manual Image
+  Annotation Tool (DMIAT) is built on top of VIA and isolates the image annotators
+  from the technical details of loading images and saving/sending annotations.
+  - images to be annotated are predefined in the form of http-image-url
+  - the annotations are automatically pushed to git repository
+
+## Source Code License
 
 VIA is an open source project actively maintained by the [Visual
 Geometry Group (VGG)](http://www.robots.ox.ac.uk/~vgg/). Its source code
@@ -639,12 +646,12 @@ is a distributed under the [BSD-2 clause
 license](https://en.wikipedia.org/wiki/BSD_licenses#2-clause_license_.28.22Simplified_BSD_License.22_or_.22FreeBSD_License.22.29).
 
 ```
-Copyright (c) 2016-2017, Abhishek Dutta. 
+Copyright (c) 2016-2017, Abhishek Dutta.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
-met: 
+met:
 
 Redistributions of source code must retain the above copyright
 notice, this list of conditions and the following disclaimer.
@@ -663,4 +670,3 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
-
