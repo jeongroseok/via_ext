@@ -94,7 +94,7 @@ var VIA_ANNOTATION_EDITOR_PLACEMENT = {
 
 var VIA_REGION_EDGE_TOL = 5; // pixel
 var VIA_REGION_CONTROL_POINT_SIZE = 2;
-var VIA_POLYGON_VERTEX_MATCH_TOL = 5;
+var VIA_POLYGON_VERTEX_MATCH_TOL = 10;
 var VIA_REGION_MIN_DIM = 3;
 var VIA_MOUSE_CLICK_TOL = 2;
 var VIA_ELLIPSE_EDGE_TOL = 0.2; // euclidean distance
@@ -114,7 +114,7 @@ var VIA_REGION_COLOR_LIST = [
   "#ffffff",
 ];
 // radius of control points in all shapes
-var VIA_REGION_SHAPES_POINTS_RADIUS = 3;
+var VIA_REGION_SHAPES_POINTS_RADIUS = VIA_POLYGON_VERTEX_MATCH_TOL * 0.6;
 // radius of control points in a point
 var VIA_REGION_POINT_RADIUS = 3;
 var VIA_REGION_POINT_RADIUS_DEFAULT = 3;
@@ -12103,6 +12103,8 @@ async function _ext_init() {
     _ext_distorter.lens.Fx = _ext_distorter.lens.Fy = value / 100.0;
     _ext_update_fisheye();
   });
+
+  _ext_add_visibility_attribute();
 }
 
 function _ext_show_img() {
@@ -12318,4 +12320,19 @@ function _ext_move_joints(joints, move_x, move_y) {
     joints[type].x += move_x;
     joints[type].y += move_y;
   }
+}
+
+function _ext_add_visibility_attribute() {
+  const json = `{
+      "type": "checkbox",
+      "description": "",
+      "options": {
+          "show": ""
+      },
+      "default_options": {
+          "show": true
+      }
+  }`;
+  const visibility = JSON.parse(json);
+  _via_attributes.region = { ..._via_attributes.region, visibility };
 }
