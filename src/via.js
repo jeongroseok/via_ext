@@ -3964,15 +3964,18 @@ function get_region_bounding_box(region) {
       bbox[2] = d["cx"] + VIA_REGION_POINT_RADIUS;
       bbox[3] = d["cy"] + VIA_REGION_POINT_RADIUS;
       break;
+    //// 추가된 코드 get_region_bounding_box
     case VIA_REGION_SHAPE.SKELETON:
-      const joints = d.joints;
-      bbox[0] = joints[_EXT_JOINT_TYPE.LeftWrist].x;
-      bbox[1] = joints[_EXT_JOINT_TYPE.HeadTop].y;
-      bbox[2] = joints[_EXT_JOINT_TYPE.RightWrist].x;
-      bbox[3] = Math.max(
-        joints[_EXT_JOINT_TYPE.LeftAnkle].y,
-        joints[_EXT_JOINT_TYPE.RightAnkle].y
+      let joints = d.joints;
+
+      joints = Object.entries(joints).map(
+        ([key, value]) => new Victor(value.x, value.y)
       );
+
+      bbox[0] = Math.min(...joints.map((v) => v.x));
+      bbox[1] = Math.min(...joints.map((v) => v.y));
+      bbox[2] = Math.max(...joints.map((v) => v.x));
+      bbox[3] = Math.max(...joints.map((v) => v.y));
       break;
   }
   return bbox;
