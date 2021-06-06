@@ -60,8 +60,7 @@ var VIA_REGION_SHAPE = {
   POLYGON: "polygon",
   POINT: "point",
   POLYLINE: "polyline",
-  SKELETON: "skeleton", //// 추가된 코드
-  SKELETON_POLAR: "skeleton_polar", //// 추가된 코드
+  SKELETON: "skeleton",
 };
 
 var VIA_ATTRIBUTE_TYPE = {
@@ -1866,7 +1865,6 @@ function _via_load_canvas_regions() {
 
       //// 추가된 코드 load_canvas_regions
       case VIA_REGION_SHAPE.SKELETON:
-      case VIA_REGION_SHAPE.SKELETON_POLAR:
         _via_canvas_regions[i].shape_attributes = JSON.parse(
           JSON.stringify(regions[i].shape_attributes)
         );
@@ -1924,13 +1922,8 @@ function select_region_shape(sel_shape_name) {
       show_message("Press single click to define points (or landmarks)");
       break;
 
-    //// 추가된 코드 shape selection
     case VIA_REGION_SHAPE.SKELETON:
-      show_message("스켈레톤");
-      break;
-
-    case VIA_REGION_SHAPE.SKELETON_POLAR:
-      show_message("회전 스켈레톤");
+      show_message("스켈레톤 테스트");
       break;
 
     default:
@@ -2407,7 +2400,6 @@ function _via_reg_canvas_mouseup_handler(e) {
         break;
       //// 추가된 코드 reg_canvas_mouseup_handler
       case VIA_REGION_SHAPE.SKELETON:
-      case VIA_REGION_SHAPE.SKELETON_POLAR:
         var moved_vertex_id =
           _via_region_edge[1] - VIA_POLYGON_RESIZE_VERTEX_OFFSET;
         const jointType = Object.keys(image_attr.joints)[moved_vertex_id];
@@ -2711,7 +2703,6 @@ function _via_reg_canvas_mouseup_handler(e) {
         break;
       //// 추가된 코드 새로운 region 생성
       case VIA_REGION_SHAPE.SKELETON:
-      case VIA_REGION_SHAPE.SKELETON_POLAR:
         // left-top, right-bottom 위치 보정
         if (_via_click_x0 < _via_click_x1) {
           region_x0 = _via_click_x0;
@@ -2735,20 +2726,13 @@ function _via_reg_canvas_mouseup_handler(e) {
         var height = Math.round(region_dy * _via_canvas_scale);
 
         original_img_region.shape_attributes =
-          _ext_create_skeleton_shape_attribute(
-            x,
-            y,
-            width,
-            height,
-            _via_current_shape
-          );
+          _ext_create_skeleton_shape_attribute(x, y, width, height);
         canvas_img_region.shape_attributes =
           _ext_create_skeleton_shape_attribute(
             x / _via_canvas_scale,
             y / _via_canvas_scale,
             width / _via_canvas_scale,
-            height / _via_canvas_scale,
-            _via_current_shape
+            height / _via_canvas_scale
           );
 
         new_region_added = true;
@@ -2991,15 +2975,9 @@ function _via_reg_canvas_mousemove_handler(e) {
         break;
       //// 추가된 코드 새로 만들때 시각화
       case VIA_REGION_SHAPE.SKELETON:
-      case VIA_REGION_SHAPE.SKELETON_POLAR:
         _ext_draw_skeleton_region(
-          _ext_create_skeleton_shape_attribute(
-            region_x0,
-            region_y0,
-            dx,
-            dy,
-            _via_current_shape
-          ).joints,
+          _ext_create_skeleton_shape_attribute(region_x0, region_y0, dx, dy)
+            .joints,
           false
         );
         break;
@@ -3234,7 +3212,6 @@ function _via_reg_canvas_mousemove_handler(e) {
         break;
       //// 추가된 코드 움직일때 시각화
       case VIA_REGION_SHAPE.SKELETON:
-      case VIA_REGION_SHAPE.SKELETON_POLAR:
         const joints = _ext_deep_copy(attr.joints);
         _ext_move_joints(joints, move_x, move_y);
         _ext_draw_skeleton_region(joints, true);
@@ -3384,7 +3361,6 @@ function _via_move_region(region_id, move_x, move_y) {
       break;
     //// 추가된 코드 move_region
     case VIA_REGION_SHAPE.SKELETON:
-    case VIA_REGION_SHAPE.SKELETON_POLAR:
       const image_joints = image_attr.joints;
       const canvas_joints = canvas_attr.joints;
       for (const type of Object.values(_EXT_JOINT_TYPE)) {
@@ -3527,9 +3503,7 @@ function draw_all_regions() {
         _via_draw_point_region(attr["cx"], attr["cy"], is_selected);
         break;
 
-      //// 추가된 코드
       case VIA_REGION_SHAPE.SKELETON:
-      case VIA_REGION_SHAPE.SKELETON_POLAR:
         _ext_draw_skeleton_region(attr.joints, is_selected);
         break;
     }
@@ -4056,7 +4030,6 @@ function is_inside_this_region(px, py, region_id) {
       break;
     //// 추가된 코드 is_inside_this_region
     case VIA_REGION_SHAPE.SKELETON:
-    case VIA_REGION_SHAPE.SKELETON_POLAR:
       result = is_inside_skeleton(attr.joints, px, py);
       break;
   }
@@ -4220,7 +4193,6 @@ function is_on_region_corner(px, py) {
 
       //// 추가된 코드 is_on_region_corner
       case VIA_REGION_SHAPE.SKELETON:
-      case VIA_REGION_SHAPE.SKELETON_POLAR:
         const joints = Object.values(attr.joints);
         const all_points_x = joints.map((j) => j.x);
         const all_points_y = joints.map((j) => j.y);
@@ -12165,13 +12137,7 @@ const _EXT_JOINT_TYPE = {
   HeadTop: "Head-top",
 };
 
-function _ext_create_skeleton_shape_attribute(
-  x,
-  y,
-  width,
-  height,
-  name = VIA_REGION_SHAPE.SKELETON
-) {
+function _ext_create_skeleton_shape_attribute(x, y, width, height) {
   const centerX = x + width / 2;
   // 머리: 7등신으로 가정 하고, 코는 머리의 2/3
   const headHeight = height / 7;
@@ -12263,7 +12229,7 @@ function _ext_create_skeleton_shape_attribute(
   };
 
   return {
-    name,
+    name: VIA_REGION_SHAPE.SKELETON,
     joints: { ...head, ...top, ...bottom },
   };
 }
