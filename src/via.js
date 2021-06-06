@@ -1924,7 +1924,7 @@ function select_region_shape(sel_shape_name) {
       show_message("Press single click to define points (or landmarks)");
       break;
 
-    //// 추가된 코드 shape selection
+    //// 추가된 코드 select_region_shape
     case VIA_REGION_SHAPE.SKELETON:
       show_message("스켈레톤");
       break;
@@ -4778,6 +4778,31 @@ function _via_reg_canvas_keydown_handler(e) {
     if (e.key === "d") {
       if (_via_is_region_selected || _via_is_all_region_selected) {
         del_sel_regions();
+      }
+      e.preventDefault();
+      return;
+    }
+
+    //// 추가된 코드 회전
+    if (e.key === "q") {
+      if (
+        _via_current_shape === VIA_REGION_SHAPE.SKELETON &&
+        _via_is_region_selected &&
+        !_via_is_all_region_selected
+      ) {
+        ext_rotate_skeleton_region(-1);
+      }
+      e.preventDefault();
+      return;
+    }
+
+    if (e.key === "e") {
+      if (
+        _via_current_shape === VIA_REGION_SHAPE.SKELETON &&
+        _via_is_region_selected &&
+        !_via_is_all_region_selected
+      ) {
+        ext_rotate_skeleton_region(1);
       }
       e.preventDefault();
       return;
@@ -12369,4 +12394,57 @@ function _ext_add_visibility_attribute() {
   }`;
   const visibility = JSON.parse(json);
   _via_attributes.region = { ..._via_attributes.region, visibility };
+}
+
+function ext_rotate_skeleton_region(direction = -1) {
+  const region_id = _via_user_sel_region_id;
+  const image_joints =
+    _via_img_metadata[_via_image_id].regions[region_id].shape_attributes.joints;
+  const canvas_joints = _via_canvas_regions[region_id].shape_attributes.joints;
+
+  let joints = Object.entries(image_joints).map(([key, value]) => ({
+    type: key,
+    vector: new Victor(value.x, value.y),
+  }));
+
+  const joints_x = joints.map((j) => j.vector.x);
+  const min_x = Math.min(...joints_x);
+  const max_x = Math.max(...joints_x);
+
+  const joints_y = joints.map((j) => j.vector.y);
+  const min_y = Math.min(...joints_y);
+  const max_y = Math.max(...joints_y);
+
+  const width = max_x - min_x;
+  const height = max_y - min_y;
+  const center = new Victor(min_x + width / 2, min_y + height / 2);
+
+  joints = joints.map(({ type, vector }) => ({
+    type,
+    vector: vector
+      .subtract(center)
+      .rotateDeg(direction * 10)
+      .add(center),
+  }));
+
+  joints.forEach(({ type, vector }) => {
+    const image_joint = image_joints[type];
+    const canvas_joint = canvas_joints[type];
+
+    image_joint.x = Math.round(vector.x);
+    image_joint.y = Math.round(vector.y);
+    canvas_joint.x = Math.round(image_joint.x / _via_canvas_scale);
+    canvas_joint.y = Math.round(image_joint.y / _via_canvas_scale);
+  });
+
+  _via_redraw_reg_canvas();
+  // for (const type of Object.values(_EXT_JOINT_TYPE)) {
+  //   const image_joint = image_joints[type];
+  //   const canvas_joint = canvas_joints[type];
+
+  //   image_joint.x = image_joint.x + Math.round(move_x * _via_canvas_scale);
+  //   image_joint.y = image_joint.y + Math.round(move_y * _via_canvas_scale);
+  //   canvas_joint.x = Math.round(image_joint.x / _via_canvas_scale);
+  //   canvas_joint.y = Math.round(image_joint.y / _via_canvas_scale);
+  // }
 }
