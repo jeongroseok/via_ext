@@ -12385,8 +12385,16 @@ function _ext_move_joints(joints, move_x, move_y) {
 }
 
 function _ext_add_visibility_attribute() {
-  const json =
-    '{"type":"checkbox","description":"","options":{"Right Ankle":"","Right Knee":"","Right Hip":"","Left Hip":"","Left Knee":"","Left Ankle":"","Right Wrist":"","Right Elbow":"","Right Shoulder":"","Left Shoulder":"","Left Elbow":"","Left Wrist":"","Head-bottom":"","Nose":"","Head-top":""},"default_options":{"Right Ankle":true,"Right Knee":true,"Right Hip":true,"Left Hip":true,"Left Knee":true,"Left Ankle":true,"Right Wrist":true,"Right Elbow":true,"Right Shoulder":true,"Left Shoulder":true,"Left Elbow":true,"Left Wrist":true,"Head-bottom":true,"Nose":true,"Head-top":true}}';
+  const json = `{
+      "type": "checkbox",
+      "description": "",
+      "options": {
+          "show": ""
+      },
+      "default_options": {
+          "show": true
+      }
+  }`;
   const visibility = JSON.parse(json);
   _via_attributes.region = { ..._via_attributes.region, visibility };
 }
