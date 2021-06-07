@@ -1870,6 +1870,9 @@ function _via_load_canvas_regions() {
         _via_canvas_regions[i].shape_attributes = JSON.parse(
           JSON.stringify(regions[i].shape_attributes)
         );
+        _via_canvas_regions[i].region_attributes = JSON.parse(
+          JSON.stringify(regions[i].region_attributes)
+        );
         const image_joints = regions[i].shape_attributes.joints;
         const canvas_joints = _via_canvas_regions[i].shape_attributes.joints;
         for (const type of Object.values(_EXT_JOINT_TYPE)) {
@@ -3537,7 +3540,11 @@ function draw_all_regions() {
 }
 
 // control point for resize of region boundaries
-function _via_draw_control_point(cx, cy) {
+function _via_draw_control_point(
+  cx,
+  cy,
+  color = VIA_THEME_CONTROL_POINT_COLOR
+) {
   _via_reg_ctx.beginPath();
   _via_reg_ctx.arc(
     cx,
@@ -3549,7 +3556,7 @@ function _via_draw_control_point(cx, cy) {
   );
   _via_reg_ctx.closePath();
 
-  _via_reg_ctx.fillStyle = VIA_THEME_CONTROL_POINT_COLOR;
+  _via_reg_ctx.fillStyle = color;
   _via_reg_ctx.globalAlpha = 1.0;
   _via_reg_ctx.fill();
 }
@@ -12302,10 +12309,10 @@ function _ext_draw_skeleton_region(joints, is_selected) {
   _via_reg_ctx.beginPath();
 
   const head = [
-    joints[_EXT_JOINT_TYPE.HeadTop],
-    joints[_EXT_JOINT_TYPE.HeadBottom],
-    joints[_EXT_JOINT_TYPE.Nose],
-  ];
+    _EXT_JOINT_TYPE.HeadTop,
+    _EXT_JOINT_TYPE.HeadBottom,
+    _EXT_JOINT_TYPE.Nose,
+  ].map((type) => joints[type]);
 
   _via_reg_ctx.moveTo(head[0].x, head[0].y);
   for (const point of head) {
@@ -12314,14 +12321,14 @@ function _ext_draw_skeleton_region(joints, is_selected) {
   _via_reg_ctx.stroke();
 
   const top = [
-    joints[_EXT_JOINT_TYPE.LeftWrist],
-    joints[_EXT_JOINT_TYPE.LeftElbow],
-    joints[_EXT_JOINT_TYPE.LeftShoulder],
-    joints[_EXT_JOINT_TYPE.HeadBottom],
-    joints[_EXT_JOINT_TYPE.RightShoulder],
-    joints[_EXT_JOINT_TYPE.RightElbow],
-    joints[_EXT_JOINT_TYPE.RightWrist],
-  ];
+    _EXT_JOINT_TYPE.LeftWrist,
+    _EXT_JOINT_TYPE.LeftElbow,
+    _EXT_JOINT_TYPE.LeftShoulder,
+    _EXT_JOINT_TYPE.HeadBottom,
+    _EXT_JOINT_TYPE.RightShoulder,
+    _EXT_JOINT_TYPE.RightElbow,
+    _EXT_JOINT_TYPE.RightWrist,
+  ].map((type) => joints[type]);
 
   _via_reg_ctx.moveTo(top[0].x, top[0].y);
   for (const point of top) {
@@ -12330,14 +12337,14 @@ function _ext_draw_skeleton_region(joints, is_selected) {
   _via_reg_ctx.stroke();
 
   const bottom = [
-    joints[_EXT_JOINT_TYPE.LeftAnkle],
-    joints[_EXT_JOINT_TYPE.LeftKnee],
-    joints[_EXT_JOINT_TYPE.LeftHip],
-    joints[_EXT_JOINT_TYPE.HeadBottom],
-    joints[_EXT_JOINT_TYPE.RightHip],
-    joints[_EXT_JOINT_TYPE.RightKnee],
-    joints[_EXT_JOINT_TYPE.RightAnkle],
-  ];
+    _EXT_JOINT_TYPE.LeftAnkle,
+    _EXT_JOINT_TYPE.LeftKnee,
+    _EXT_JOINT_TYPE.LeftHip,
+    _EXT_JOINT_TYPE.HeadBottom,
+    _EXT_JOINT_TYPE.RightHip,
+    _EXT_JOINT_TYPE.RightKnee,
+    _EXT_JOINT_TYPE.RightAnkle,
+  ].map((type) => joints[type]);
 
   _via_reg_ctx.moveTo(bottom[0].x, bottom[0].y);
   for (const point of bottom) {
@@ -12348,6 +12355,16 @@ function _ext_draw_skeleton_region(joints, is_selected) {
   if (is_selected) {
     for (const point of [...head, ...top, ...bottom]) {
       _via_draw_control_point(point.x, point.y);
+    }
+    for (const point of [
+      _EXT_JOINT_TYPE.RightShoulder,
+      _EXT_JOINT_TYPE.RightElbow,
+      _EXT_JOINT_TYPE.RightWrist,
+      _EXT_JOINT_TYPE.RightHip,
+      _EXT_JOINT_TYPE.RightKnee,
+      _EXT_JOINT_TYPE.RightAnkle,
+    ].map((type) => joints[type])) {
+      _via_draw_control_point(point.x, point.y, "#0000FF");
     }
   }
 }
@@ -12385,16 +12402,8 @@ function _ext_move_joints(joints, move_x, move_y) {
 }
 
 function _ext_add_visibility_attribute() {
-  const json = `{
-      "type": "checkbox",
-      "description": "",
-      "options": {
-          "show": ""
-      },
-      "default_options": {
-          "show": true
-      }
-  }`;
+  const json =
+    '{"type":"checkbox","description":"","options":{"Right Ankle":"","Right Knee":"","Right Hip":"","Left Hip":"","Left Knee":"","Left Ankle":"","Right Wrist":"","Right Elbow":"","Right Shoulder":"","Left Shoulder":"","Left Elbow":"","Left Wrist":"","Head-bottom":"","Nose":"","Head-top":""},"default_options":{"Right Ankle":true,"Right Knee":true,"Right Hip":true,"Left Hip":true,"Left Knee":true,"Left Ankle":true,"Right Wrist":true,"Right Elbow":true,"Right Shoulder":true,"Left Shoulder":true,"Left Elbow":true,"Left Wrist":true,"Head-bottom":true,"Nose":true,"Head-top":true}}';
   const visibility = JSON.parse(json);
   _via_attributes.region = { ..._via_attributes.region, visibility };
 }
