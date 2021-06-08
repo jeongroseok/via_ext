@@ -4818,6 +4818,18 @@ function _via_reg_canvas_keydown_handler(e) {
       return;
     }
 
+    if (e.key === "w") {
+      if (
+        _via_current_shape === VIA_REGION_SHAPE.SKELETON &&
+        _via_is_region_selected &&
+        !_via_is_all_region_selected
+      ) {
+        ext_xflip_skeleton_region();
+      }
+      e.preventDefault();
+      return;
+    }
+
     if (_via_is_region_selected) {
       if (
         e.key === "ArrowRight" ||
@@ -12183,21 +12195,21 @@ function _ext_update_fisheye() {
 }
 
 const _EXT_JOINT_TYPE = {
-  RightAnkle: "Right Ankle",
-  RightKnee: "Right Knee",
-  RightHip: "Right Hip",
-  LeftHip: "Left Hip",
-  LeftKnee: "Left Knee",
-  LeftAnkle: "Left Ankle",
-  RightWrist: "Right Wrist",
-  RightElbow: "Right Elbow",
-  RightShoulder: "Right Shoulder",
+  HeadTop: "Head-top",
+  Nose: "Nose",
+  HeadBottom: "Head-bottom",
   LeftShoulder: "Left Shoulder",
   LeftElbow: "Left Elbow",
   LeftWrist: "Left Wrist",
-  HeadBottom: "Head-bottom",
-  Nose: "Nose",
-  HeadTop: "Head-top",
+  LeftHip: "Left Hip",
+  LeftKnee: "Left Knee",
+  LeftAnkle: "Left Ankle",
+  RightShoulder: "Right Shoulder",
+  RightElbow: "Right Elbow",
+  RightWrist: "Right Wrist",
+  RightHip: "Right Hip",
+  RightKnee: "Right Knee",
+  RightAnkle: "Right Ankle",
 };
 
 function _ext_create_skeleton_shape_attribute(
@@ -12303,69 +12315,62 @@ function _ext_create_skeleton_shape_attribute(
   };
 }
 
-function _ext_draw_skeleton_region(joints, is_selected) {
+function _ext_draw_joint_line(joints) {
   _via_reg_ctx.strokeStyle = VIA_THEME_SEL_REGION_FILL_BOUNDARY_COLOR;
   _via_reg_ctx.lineWidth = VIA_THEME_REGION_BOUNDARY_WIDTH / 2;
   _via_reg_ctx.beginPath();
 
-  const head = [
-    _EXT_JOINT_TYPE.HeadTop,
-    _EXT_JOINT_TYPE.HeadBottom,
-    _EXT_JOINT_TYPE.Nose,
-  ].map((type) => joints[type]);
-
-  _via_reg_ctx.moveTo(head[0].x, head[0].y);
-  for (const point of head) {
-    _via_reg_ctx.lineTo(point.x, point.y);
+  _via_reg_ctx.moveTo(joints[0].x, joints[0].y);
+  for (const joint of joints) {
+    _via_reg_ctx.lineTo(joint.x, joint.y);
   }
   _via_reg_ctx.stroke();
+}
 
-  const top = [
+function _ext_draw_skeleton_region(joints, is_selected) {
+  // _via_reg_ctx.strokeStyle = VIA_THEME_SEL_REGION_FILL_BOUNDARY_COLOR;
+  // _via_reg_ctx.lineWidth = VIA_THEME_REGION_BOUNDARY_WIDTH / 2;
+  // _via_reg_ctx.beginPath();
+
+  const centerJoint = _EXT_JOINT_TYPE.HeadBottom;
+
+  const headJoints = [
+    _EXT_JOINT_TYPE.HeadTop,
+    _EXT_JOINT_TYPE.Nose,
+    centerJoint,
+  ].map((type) => joints[type]);
+  _ext_draw_joint_line(headJoints);
+
+  const leftJoints = [
     _EXT_JOINT_TYPE.LeftWrist,
     _EXT_JOINT_TYPE.LeftElbow,
     _EXT_JOINT_TYPE.LeftShoulder,
-    _EXT_JOINT_TYPE.HeadBottom,
-    _EXT_JOINT_TYPE.RightShoulder,
-    _EXT_JOINT_TYPE.RightElbow,
-    _EXT_JOINT_TYPE.RightWrist,
-  ].map((type) => joints[type]);
-
-  _via_reg_ctx.moveTo(top[0].x, top[0].y);
-  for (const point of top) {
-    _via_reg_ctx.lineTo(point.x, point.y);
-  }
-  _via_reg_ctx.stroke();
-
-  const bottom = [
-    _EXT_JOINT_TYPE.LeftAnkle,
-    _EXT_JOINT_TYPE.LeftKnee,
+    centerJoint,
     _EXT_JOINT_TYPE.LeftHip,
-    _EXT_JOINT_TYPE.HeadBottom,
+    _EXT_JOINT_TYPE.LeftKnee,
+    _EXT_JOINT_TYPE.LeftAnkle,
+  ].map((type) => joints[type]);
+  _ext_draw_joint_line(leftJoints);
+
+  const rightJoints = [
+    _EXT_JOINT_TYPE.RightWrist,
+    _EXT_JOINT_TYPE.RightElbow,
+    _EXT_JOINT_TYPE.RightShoulder,
+    centerJoint,
     _EXT_JOINT_TYPE.RightHip,
     _EXT_JOINT_TYPE.RightKnee,
     _EXT_JOINT_TYPE.RightAnkle,
   ].map((type) => joints[type]);
-
-  _via_reg_ctx.moveTo(bottom[0].x, bottom[0].y);
-  for (const point of bottom) {
-    _via_reg_ctx.lineTo(point.x, point.y);
-  }
-  _via_reg_ctx.stroke();
+  _ext_draw_joint_line(rightJoints);
 
   if (is_selected) {
-    for (const point of [...head, ...top, ...bottom]) {
-      _via_draw_control_point(point.x, point.y);
-    }
-    for (const point of [
-      _EXT_JOINT_TYPE.RightShoulder,
-      _EXT_JOINT_TYPE.RightElbow,
-      _EXT_JOINT_TYPE.RightWrist,
-      _EXT_JOINT_TYPE.RightHip,
-      _EXT_JOINT_TYPE.RightKnee,
-      _EXT_JOINT_TYPE.RightAnkle,
-    ].map((type) => joints[type])) {
-      _via_draw_control_point(point.x, point.y, "#0000FF");
-    }
+    leftJoints
+      .filter((x) => x !== centerJoint)
+      .forEach(({ x, y }) => _via_draw_control_point(x, y, "#FF0000"));
+    rightJoints
+      .filter((x) => x !== centerJoint)
+      .forEach(({ x, y }) => _via_draw_control_point(x, y, "#0000FF"));
+    headJoints.forEach(({ x, y }) => _via_draw_control_point(x, y, "#FFFF00"));
   }
 }
 
@@ -12462,13 +12467,45 @@ function ext_rotate_skeleton_region(direction = -1) {
   });
 
   _via_redraw_reg_canvas();
-  // for (const type of Object.values(_EXT_JOINT_TYPE)) {
-  //   const image_joint = image_joints[type];
-  //   const canvas_joint = canvas_joints[type];
+}
 
-  //   image_joint.x = image_joint.x + Math.round(move_x * _via_canvas_scale);
-  //   image_joint.y = image_joint.y + Math.round(move_y * _via_canvas_scale);
-  //   canvas_joint.x = Math.round(image_joint.x / _via_canvas_scale);
-  //   canvas_joint.y = Math.round(image_joint.y / _via_canvas_scale);
-  // }
+function ext_xflip_skeleton_region() {
+  const region_id = _via_user_sel_region_id;
+  const image_joints =
+    _via_img_metadata[_via_image_id].regions[region_id].shape_attributes.joints;
+  const canvas_joints = _via_canvas_regions[region_id].shape_attributes.joints;
+
+  let joints = Object.entries(image_joints).map(([key, value]) => ({
+    type: key,
+    vector: new Victor(value.x, value.y),
+  }));
+
+  const joints_x = joints.map((j) => j.vector.x);
+  const min_x = Math.min(...joints_x);
+  const max_x = Math.max(...joints_x);
+
+  const joints_y = joints.map((j) => j.vector.y);
+  const min_y = Math.min(...joints_y);
+  const max_y = Math.max(...joints_y);
+
+  const width = max_x - min_x;
+  const height = max_y - min_y;
+  const center = new Victor(min_x + width / 2, min_y + height / 2);
+
+  joints = joints.map(({ type, vector }) => ({
+    type,
+    vector: vector.subtract(center).invertX().add(center),
+  }));
+
+  joints.forEach(({ type, vector }) => {
+    const image_joint = image_joints[type];
+    const canvas_joint = canvas_joints[type];
+
+    image_joint.x = Math.round(vector.x);
+    image_joint.y = Math.round(vector.y);
+    canvas_joint.x = Math.round(image_joint.x / _via_canvas_scale);
+    canvas_joint.y = Math.round(image_joint.y / _via_canvas_scale);
+  });
+
+  _via_redraw_reg_canvas();
 }
