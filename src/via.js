@@ -11186,7 +11186,6 @@ function _via_show_img_from_buffer(img_index) {
       set_zoom(_via_canvas_zoom_level_index);
     }
     ok_callback(img_index);
-    _ext_show_img(img_index);
   });
 }
 
@@ -12145,55 +12144,6 @@ function _ext_img2base64(url) {
   });
 }
 
-var _ext_distorter = {};
-var _ext_bimg = undefined;
-
-async function _ext_init() {
-  // const canvas = document.createElement("canvas");
-  // canvas.id = "ext_canvas";
-  // canvas.hidden = true;
-  // document.body.appendChild(canvas);
-
-  // _ext_distorter = FisheyeGl({
-  //   image: await _ext_img2base64("./gridGuide.png"),
-  //   selector: "#ext_canvas", // a canvas element to work with
-  //   lens: {
-  //     a: 1, // 0 to 4;  default 1
-  //     b: 1, // 0 to 4;  default 1
-  //     Fx: 0.0, // 0 to 4;  default 0.0
-  //     Fy: 0.0, // 0 to 4;  default 0.0
-  //     scale: 1, // 0 to 20; default 1.5
-  //   },
-  //   fov: {
-  //     x: 1, // 0 to 2; default 1
-  //     y: 1, // 0 to 2; default 1
-  //   },
-  // });
-
-  // _ext_bimg = document.createElement("img");
-  // _via_img_panel.insertBefore(_ext_bimg, _via_reg_canvas);
-
-  // document.getElementById("lens").addEventListener("change", ({ target }) => {
-  //   const value = target.value;
-  //   _ext_distorter.lens.Fx = _ext_distorter.lens.Fy = value / 100.0;
-  //   _ext_update_fisheye();
-  // });
-
-  _ext_add_visibility_attribute();
-}
-
-function _ext_show_img() {
-  // _via_current_image.classList.remove("visible");
-  // _ext_update_fisheye();
-  // _ext_bimg.classList.add("visible");
-}
-
-function _ext_update_fisheye() {
-  _ext_distorter.setImage(_via_current_image.src, () => {
-    _ext_bimg.src = _ext_distorter.getSrc("image/png");
-  });
-}
-
 const _EXT_JOINT_TYPE = {
   HeadTop: "Head-top",
   Nose: "Nose",
@@ -12212,6 +12162,10 @@ const _EXT_JOINT_TYPE = {
   RightAnkle: "Right Ankle",
 };
 
+async function _ext_init() {
+  _ext_add_visibility_attribute();
+}
+
 function _ext_create_skeleton_shape_attribute(
   x,
   y,
@@ -12219,93 +12173,93 @@ function _ext_create_skeleton_shape_attribute(
   height,
   name = VIA_REGION_SHAPE.SKELETON
 ) {
-  const centerX = x + width / 2;
+  const center_x = x + width / 2;
   // 머리: 7등신으로 가정 하고, 코는 머리의 2/3
-  const headHeight = height / 7;
+  const head_height = height / 7;
   const head = {
     [_EXT_JOINT_TYPE.HeadTop]: {
-      x: centerX,
+      x: center_x,
       y,
     },
     [_EXT_JOINT_TYPE.Nose]: {
-      x: centerX,
-      y: y + (headHeight / 3) * 2,
+      x: center_x,
+      y: y + (head_height / 3) * 2,
     },
     [_EXT_JOINT_TYPE.HeadBottom]: {
-      x: centerX,
-      y: y + headHeight,
+      x: center_x,
+      y: y + head_height,
     },
   };
 
   // 상체: 3/7
-  const topHeight = headHeight * 3;
-  const topY = y + headHeight;
-  const topWidth = width;
+  const top_height = head_height * 3;
+  const top_y = y + head_height;
+  const top_width = width;
   const top = {
     // 손목
     [_EXT_JOINT_TYPE.LeftWrist]: {
       x: x,
-      y: topY + topHeight * 0.9,
+      y: top_y + top_height * 0.9,
     },
     [_EXT_JOINT_TYPE.RightWrist]: {
-      x: x + topWidth,
-      y: topY + topHeight * 0.9,
+      x: x + top_width,
+      y: top_y + top_height * 0.9,
     },
 
     // 팔꿈치
     [_EXT_JOINT_TYPE.LeftElbow]: {
-      x: x + topWidth * 0.1,
-      y: topY + topHeight * 0.4,
+      x: x + top_width * 0.1,
+      y: top_y + top_height * 0.4,
     },
     [_EXT_JOINT_TYPE.RightElbow]: {
-      x: x + topWidth - topWidth * 0.1,
-      y: topY + topHeight * 0.4,
+      x: x + top_width - top_width * 0.1,
+      y: top_y + top_height * 0.4,
     },
 
     // 어깨
     [_EXT_JOINT_TYPE.LeftShoulder]: {
-      x: x + topWidth * 0.2,
-      y: topY + topHeight * 0.15,
+      x: x + top_width * 0.2,
+      y: top_y + top_height * 0.15,
     },
     [_EXT_JOINT_TYPE.RightShoulder]: {
-      x: x + topWidth - topWidth * 0.2,
-      y: topY + topHeight * 0.15,
+      x: x + top_width - top_width * 0.2,
+      y: top_y + top_height * 0.15,
     },
   };
 
   // 하체: 3/7
-  const bottomHeight = headHeight * 3;
-  const bottomY = y + headHeight + topHeight;
-  const bottomWidth = width * 0.4;
+  const bottom_height = head_height * 3;
+  const bottom_y = y + head_height + top_height;
+  const bottom_width = width * 0.4;
   const bottom = {
     // 발목
     [_EXT_JOINT_TYPE.LeftAnkle]: {
-      x: centerX - bottomWidth / 2,
-      y: bottomY + bottomHeight,
+      x: center_x - bottom_width / 2,
+      y: bottom_y + bottom_height,
     },
     [_EXT_JOINT_TYPE.RightAnkle]: {
-      x: centerX + bottomWidth / 2,
-      y: bottomY + bottomHeight,
+      x: center_x + bottom_width / 2,
+      y: bottom_y + bottom_height,
     },
 
     // 무릎
     [_EXT_JOINT_TYPE.LeftKnee]: {
-      x: centerX - bottomWidth / 2,
-      y: bottomY + bottomHeight * 0.4,
+      x: center_x - bottom_width / 2,
+      y: bottom_y + bottom_height * 0.4,
     },
     [_EXT_JOINT_TYPE.RightKnee]: {
-      x: centerX + bottomWidth / 2,
-      y: bottomY + bottomHeight * 0.4,
+      x: center_x + bottom_width / 2,
+      y: bottom_y + bottom_height * 0.4,
     },
 
     // 엉덩이
     [_EXT_JOINT_TYPE.LeftHip]: {
-      x: centerX - bottomWidth / 2,
-      y: bottomY + bottomHeight * 0.1,
+      x: center_x - bottom_width / 2,
+      y: bottom_y + bottom_height * 0.1,
     },
     [_EXT_JOINT_TYPE.RightHip]: {
-      x: centerX + bottomWidth / 2,
-      y: bottomY + bottomHeight * 0.1,
+      x: center_x + bottom_width / 2,
+      y: bottom_y + bottom_height * 0.1,
     },
   };
 
@@ -12328,49 +12282,77 @@ function _ext_draw_joint_line(joints) {
 }
 
 function _ext_draw_skeleton_region(joints, is_selected) {
-  // _via_reg_ctx.strokeStyle = VIA_THEME_SEL_REGION_FILL_BOUNDARY_COLOR;
-  // _via_reg_ctx.lineWidth = VIA_THEME_REGION_BOUNDARY_WIDTH / 2;
-  // _via_reg_ctx.beginPath();
+  const region_id = _via_canvas_regions.findIndex(
+    (x) => x.shape_attributes.joints === joints
+  );
 
-  const centerJoint = _EXT_JOINT_TYPE.HeadBottom;
+  let invisible_joints = [];
 
-  const headJoints = [
+  if (region_id > -1) {
+    const region_attributes =
+      _via_img_metadata[_via_image_id].regions[region_id].region_attributes;
+    invisible_joints = Object.values(_EXT_JOINT_TYPE).filter(
+      (type) => region_attributes[type] !== "visible"
+    );
+  }
+
+  const center_joint = _EXT_JOINT_TYPE.HeadBottom;
+
+  const head_joints = [
     _EXT_JOINT_TYPE.HeadTop,
     _EXT_JOINT_TYPE.Nose,
-    centerJoint,
-  ].map((type) => joints[type]);
-  _ext_draw_joint_line(headJoints);
+    center_joint,
+  ].map((type) => ({ ...joints[type], type }));
+  _ext_draw_joint_line(head_joints);
 
-  const leftJoints = [
+  const left_joints = [
     _EXT_JOINT_TYPE.LeftWrist,
     _EXT_JOINT_TYPE.LeftElbow,
     _EXT_JOINT_TYPE.LeftShoulder,
-    centerJoint,
+    center_joint,
     _EXT_JOINT_TYPE.LeftHip,
     _EXT_JOINT_TYPE.LeftKnee,
     _EXT_JOINT_TYPE.LeftAnkle,
-  ].map((type) => joints[type]);
-  _ext_draw_joint_line(leftJoints);
+  ].map((type) => ({ ...joints[type], type }));
+  _ext_draw_joint_line(left_joints);
 
-  const rightJoints = [
+  const right_joints = [
     _EXT_JOINT_TYPE.RightWrist,
     _EXT_JOINT_TYPE.RightElbow,
     _EXT_JOINT_TYPE.RightShoulder,
-    centerJoint,
+    center_joint,
     _EXT_JOINT_TYPE.RightHip,
     _EXT_JOINT_TYPE.RightKnee,
     _EXT_JOINT_TYPE.RightAnkle,
-  ].map((type) => joints[type]);
-  _ext_draw_joint_line(rightJoints);
+  ].map((type) => ({ ...joints[type], type }));
+  _ext_draw_joint_line(right_joints);
 
   if (is_selected) {
-    leftJoints
-      .filter((x) => x !== centerJoint)
-      .forEach(({ x, y }) => _via_draw_control_point(x, y, "#FF0000"));
-    rightJoints
-      .filter((x) => x !== centerJoint)
-      .forEach(({ x, y }) => _via_draw_control_point(x, y, "#0000FF"));
-    headJoints.forEach(({ x, y }) => _via_draw_control_point(x, y, "#FFFF00"));
+    left_joints
+      .filter((x) => x !== center_joint)
+      .forEach(({ x, y, type }) =>
+        _via_draw_control_point(
+          x,
+          y,
+          invisible_joints.includes(type) ? "#FF000033" : "#FF0000FF"
+        )
+      );
+    right_joints
+      .filter((x) => x !== center_joint)
+      .forEach(({ x, y, type }) =>
+        _via_draw_control_point(
+          x,
+          y,
+          invisible_joints.includes(type) ? "#0000FF33" : "#0000FFFF"
+        )
+      );
+    head_joints.forEach(({ x, y, type }) =>
+      _via_draw_control_point(
+        x,
+        y,
+        invisible_joints.includes(type) ? "#FFFF0033" : "#FFFF00FF"
+      )
+    );
   }
 }
 
