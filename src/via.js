@@ -4753,13 +4753,13 @@ function _via_reg_canvas_keydown_handler(e) {
       }
     }
 
-    if (e.key === "a") {
+    if (e.key === "a" || e.key === "A") {
       sel_all_regions();
       e.preventDefault();
       return;
     }
 
-    if (e.key === "c") {
+    if (e.key === "c" || e.key === "C") {
       if (_via_is_region_selected || _via_is_all_region_selected) {
         copy_sel_regions();
       }
@@ -4767,25 +4767,25 @@ function _via_reg_canvas_keydown_handler(e) {
       return;
     }
 
-    if (e.key === "v") {
+    if (e.key === "v" || e.key === "V") {
       paste_sel_regions_in_current_image();
       e.preventDefault();
       return;
     }
 
-    if (e.key === "b") {
+    if (e.key === "b" || e.key === "B") {
       toggle_region_boundary_visibility();
       e.preventDefault();
       return;
     }
 
-    if (e.key === "l") {
+    if (e.key === "l" || e.key === "L") {
       toggle_region_id_visibility();
       e.preventDefault();
       return;
     }
 
-    if (e.key === "d") {
+    if (e.key === "d" || e.key === "D") {
       if (_via_is_region_selected || _via_is_all_region_selected) {
         del_sel_regions();
       }
@@ -4794,7 +4794,7 @@ function _via_reg_canvas_keydown_handler(e) {
     }
 
     //// 추가된 코드 회전
-    if (e.key === "q") {
+    if (e.key === "q" || e.key === "Q") {
       if (
         _via_current_shape === VIA_REGION_SHAPE.SKELETON &&
         _via_is_region_selected &&
@@ -4806,7 +4806,7 @@ function _via_reg_canvas_keydown_handler(e) {
       return;
     }
 
-    if (e.key === "e") {
+    if (e.key === "e" || e.key === "E") {
       if (
         _via_current_shape === VIA_REGION_SHAPE.SKELETON &&
         _via_is_region_selected &&
@@ -4818,7 +4818,7 @@ function _via_reg_canvas_keydown_handler(e) {
       return;
     }
 
-    if (e.key === "w") {
+    if (e.key === "w" || e.key === "W") {
       if (
         _via_current_shape === VIA_REGION_SHAPE.SKELETON &&
         _via_is_region_selected &&
@@ -12399,7 +12399,7 @@ function _ext_add_visibility_attribute() {
       [type]: {
         default_options: { visible: true },
         description: `${type} visibility`,
-        options: { visible: "", hidden: "", none: "" },
+        options: { visible: "", occluded: "", none: "" },
         type: "dropdown",
       },
     };
